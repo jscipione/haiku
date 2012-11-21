@@ -3,6 +3,9 @@
  *
  * This file written by Ryan C. Gordon as part of the FatELF project,
  * released under the public domain.
+ *
+ * Copyright 2012 Haiku, Inc. All rights reserved.
+ * Distributed under the terms of the MIT License.
  */
 
 #ifndef _FATELF_H
