@@ -25,6 +25,25 @@
 #endif
 
 
+uint32_t arch_elf_score_abi_ident(uint16_t emachine, uint8_t osabi, 
+	uint8_t osabi_version)
+{
+	switch (emachine) {
+		case EM_386:
+			return 1;
+		case EM_486:
+			return 2;
+#ifdef __x86_64__
+		// Prefer x86-64 if it's supported.
+		case EM_X86_64:
+			return 3;
+#endif /* __x86_64__ */
+		default:
+			return 0;
+	}
+}
+
+
 #ifndef _BOOT_MODE
 static bool
 is_in_image(struct elf_image_info *image, addr_t address)

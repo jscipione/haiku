@@ -16,6 +16,14 @@ struct elf_image_info;
 extern "C" {
 #endif
 
+// 'Score' an ELF binary ident. Arguments correspond to the matching e_machine
+// and e_ident ELF fields.
+//
+// Preference is given to binaries with a higher score. Binaries with a score
+// of 0 will be considered unsupported.
+extern uint32_t arch_elf_score_abi_ident(uint16_t machine, uint8_t osabi, 
+	uint8_t osabi_version, uint8_t cls, uint8_t byte_order);
+
 extern int arch_elf_relocate_rel(struct elf_image_info *image,
 	struct elf_image_info *resolve_image, elf_rel *rel, int rel_len);
 extern int arch_elf_relocate_rela(struct elf_image_info *image,
