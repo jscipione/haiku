@@ -1,4 +1,4 @@
-/**
+/*
  * FatELF; support multiple ELF binaries in one file.
  *
  * This file written by Ryan C. Gordon as part of the FatELF project,
@@ -30,7 +30,7 @@ typedef struct FATELF_record
 {
 	uint16_t machine;		/* maps to e_machine. */
 	uint8_t osabi;			/* maps to e_ident[EI_OSABI]. */ 
-	uint8_t osabi_version;		/* maps to e_ident[EI_ABIVERSION]. */
+	uint8_t osabi_version;	/* maps to e_ident[EI_ABIVERSION]. */
 	uint8_t word_size;		/* maps to e_ident[EI_CLASS]. */
 	uint8_t byte_order;		/* maps to e_ident[EI_DATA]. */
 	uint8_t reserved0;
