@@ -25,10 +25,10 @@
 #endif
 
 
-uint32_t arch_elf_score_abi_ident(uint16_t emachine, uint8_t osabi, 
-	uint8_t osabi_version)
+uint32_t arch_elf_score_abi_ident(uint16_t machine, uint8_t osabi, 
+	uint8_t osabi_version, uint8_t cls, uint8_t byte_order)
 {
-	switch (emachine) {
+	switch (machine) {
 		case EM_386:
 			return 1;
 		case EM_486:
