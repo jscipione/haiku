@@ -1811,7 +1811,7 @@ elf_lookup_kernel_symbol(const char* name, elf_symbol_info* info)
 // Find an arch that scores best with the provided score_record() function
 // A score of 0 implies that a binary is not supported at all.
 static status_t
-elf_find_fat_arch(const char *path, elf_fat_score_arch score_arch,
+elf_find_fat_arch(int fd, elf_fat_score_arch score_arch,
 	void *context, struct elf_fat_arch_section *found_section)
 {
 	FATELF_header fatHeader;
@@ -1819,13 +1819,6 @@ elf_find_fat_arch(const char *path, elf_fat_score_arch score_arch,
 	uint32_t magic;
 	status_t status;
 	ssize_t length;
-	int fd;
-
-	fd = _kern_open(-1, path, O_RDONLY, 0);
-	if (fd < 0) {
-		dprintf("failed to open FATELF binary\n");
-		return fd;
-	}
 
 	struct stat st;
 	status = _kern_read_stat(fd, NULL, false, &st, sizeof(st));
@@ -1838,20 +1831,18 @@ elf_find_fat_arch(const char *path, elf_fat_score_arch score_arch,
 	length = _kern_read(fd, 0, &magic, sizeof(magic));
 	if (length < B_OK) {
 		dprintf("read error on FATELF record\n");
-		status = length;
-		goto finished;
+		return length;
 	}
 
 	if (length != sizeof(magic)) {
 		// short read
 		dprintf("short read on FATELF magic\n");
-		status = B_NOT_AN_EXECUTABLE;
-		goto finished;
+		return B_NOT_AN_EXECUTABLE;
 	}
 
-	status = _kern_seek(fd, 0, SEEK_SET);
-	if (status < B_OK) {
-		goto finished;
+	length = _kern_seek(fd, 0, SEEK_SET);
+	if (length < B_OK) {
+		return length;
 	}
 
 	if (B_LENDIAN_TO_HOST_INT32(magic) != FATELF_MAGIC) {
@@ -1861,20 +1852,18 @@ elf_find_fat_arch(const char *path, elf_fat_score_arch score_arch,
 		length = _kern_read(fd, 0, &elfHeader, sizeof(elfHeader));
 		if (length < B_OK) {
 			dprintf("read error on ELF header\n");
-			status = length;
-			goto finished;
+			return length;
 		}
 
 		if (length != sizeof(elfHeader)) {
 			// short read
 			dprintf("short read on ELF header\n");
-			status = B_NOT_AN_EXECUTABLE;
-			goto finished;
+			return B_NOT_AN_EXECUTABLE;
 		}
 
 		status = verify_eheader(&elfHeader);
 		if (status < B_OK)
-			goto finished;
+			return status;
 
 		// File is not FAT, simply return the thin ELF.
 		found_section->arch.osabi = elfHeader.e_ident[EI_OSABI];
@@ -1894,27 +1883,23 @@ elf_find_fat_arch(const char *path, elf_fat_score_arch score_arch,
 
 		if (score_arch(&found_section->arch, context) == 0) {
 			dprintf("architecture mismatch on thin ELF\n");
-			status = B_MISMATCHING_ARCHITECTURE;
+			return B_MISMATCHING_ARCHITECTURE;
 		} else {
-			status = B_OK;
+			return B_OK;
 		}
-
-		goto finished;
 	}
 
 	// iterate the fat records
 	length = _kern_read(fd, 0, &fatHeader, sizeof(fatHeader));
 	if (length < B_OK) {
 		dprintf("read error on FATELF header\n");
-		status = length;
-		goto finished;
+		return length;
 	}
 
 	if (length != sizeof(fatHeader)) {
 		// short read
 		dprintf("short read on FATELF header\n");
-		status = B_NOT_AN_EXECUTABLE;
-		goto finished;
+		return B_NOT_AN_EXECUTABLE;
 	}
 
 	// Score the fat records
@@ -1923,15 +1908,13 @@ elf_find_fat_arch(const char *path, elf_fat_score_arch score_arch,
 		length = _kern_read(fd, 0, &fatRecord, sizeof(fatRecord));
 		if (length < B_OK) {
 			dprintf("read error on FATELF record\n");
-			status = length;
-			goto finished;
+			return B_NOT_AN_EXECUTABLE;
 		}
 
 		if (length != sizeof(fatRecord)) {
 			// short read
 			dprintf("short read on FATELF record\n");
-			status = B_NOT_AN_EXECUTABLE;
-			goto finished;
+			return B_NOT_AN_EXECUTABLE;
 		}
 
 		struct elf_fat_arch fat_arch;
@@ -1953,16 +1936,11 @@ elf_find_fat_arch(const char *path, elf_fat_score_arch score_arch,
 	}
 
 	if (bestScore > 0) {
-		status = B_OK;
+		return B_OK;
 	} else {
 		dprintf("no binaries found with a score > 0 in FATELF\n");
-		status = B_MISMATCHING_ARCHITECTURE;
+		return B_MISMATCHING_ARCHITECTURE;
 	}
-
-finished:
-	_kern_close(fd);
-
-	return status;
 }
 
 
@@ -1974,11 +1952,9 @@ elf_score_best_fat_arch(struct elf_fat_arch *arch, void *context) {
 
 
 status_t
-elf_find_best_fat_arch(const char *path,
-	struct elf_fat_arch_section *found_section)
+elf_find_best_fat_arch(int fd, struct elf_fat_arch_section *found_section)
 {
-	return elf_find_fat_arch(path, elf_score_best_fat_arch, NULL,
-		found_section);
+	return elf_find_fat_arch(fd, elf_score_best_fat_arch, NULL, found_section);
 }
 
 
@@ -2003,11 +1979,10 @@ elf_score_matching_fat_arch(struct elf_fat_arch *arch, void *context) {
 }
 
 
-status_t elf_find_matching_fat_arch(const char *path,
-	struct elf_fat_arch_match *match,
+status_t elf_find_matching_fat_arch(int fd, struct elf_fat_arch_match *match,
 	struct elf_fat_arch_section *found_section)
 {
-	return elf_find_fat_arch(path, elf_score_matching_fat_arch, match,
+	return elf_find_fat_arch(fd, elf_score_matching_fat_arch, match,
 		found_section);
 }
 
@@ -2035,12 +2010,10 @@ elf_load_user_image(const char *path, Team *team, int flags, addr_t *entry,
 	if (status != B_OK)
 		return status;
 
-	// FATELF_TODO: Provide fd-based FATELF APIs, so we can open the target
-	// file only once.
 	off_t fileOffset = 0;
 	if (arch_required != NULL) {
 		struct elf_fat_arch_section fat_arch_section;
-		status = elf_find_matching_fat_arch(path, arch_required,
+		status = elf_find_matching_fat_arch(fd, arch_required,
 			&fat_arch_section);
 
 		if (status != B_OK) {
@@ -2052,15 +2025,14 @@ elf_load_user_image(const char *path, Team *team, int flags, addr_t *entry,
 		st.st_size = fat_arch_section.size;
 	}
 
-	// read and verify the ELF header
-	if (fileOffset > 0) {
-		length = _kern_seek(fd, fileOffset, SEEK_SET);
-		if (length < B_OK) {
-			status = length;
-			goto error;
-		}
+	// In the case of thin files, this will seek back to 0.
+	length = _kern_seek(fd, fileOffset, SEEK_SET);
+	if (length < B_OK) {
+		status = length;
+		goto error;
 	}
 
+	// read and verify the ELF header
 	length = _kern_read(fd, 0, &elfHeader, sizeof(elfHeader));
 	if (length < B_OK) {
 		status = length;

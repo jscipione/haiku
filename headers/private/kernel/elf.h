@@ -46,11 +46,10 @@ struct elf_symbol_info {
 extern "C" {
 #endif
 
-status_t elf_find_best_fat_arch(const char *path,
+status_t elf_find_best_fat_arch(int fd,
 		struct elf_fat_arch_section *found_section);
 
-status_t elf_find_matching_fat_arch(const char *path,
-	struct elf_fat_arch_match *match,
+status_t elf_find_matching_fat_arch(int fd, struct elf_fat_arch_match *match,
 	struct elf_fat_arch_section *found_section);
 
 status_t elf_load_user_image(const char *path, Team *team, int flags,

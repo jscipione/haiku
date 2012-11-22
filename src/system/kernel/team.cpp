@@ -1531,21 +1531,34 @@ team_create_thread_start_internal(void* args)
 	TRACE(("team_create_thread_start: loading elf binary '%s'\n", path));
 
 	// determine the target binary architecture
-	// FATELF_TODO: The path needs to be normalized relative to cwd
-	struct elf_fat_arch_section fat_arch_section;
+	// FATELF_TODO: Evaluate the return codes used for failed vfs I/O
 	struct elf_fat_arch_match fat_arch_match;
+	{
+		// Fetch the target executable, relative to the team's cwd
+		// FATELF_TODO: Is this the best approach? Are the locking and
+		// reference counting invariants being adhered to here?
+		int dirfd = vfs_open_vnode(team->io_context->cwd, O_RDONLY, true);
+		if (dirfd < B_OK)
+			return dirfd;
 
-	err = elf_find_best_fat_arch(path, &fat_arch_section);
-	if (err != B_OK) {
-		TRACE((
-			"team_create_thread_start: elf_find_best_fat_arch() failed: %s\n",
-			strerror(err)));
-		free_team_arg(teamArgs);
-		return err;
+		int fd = _kern_open(dirfd, path, O_RDONLY, 0);
+		_kernel_close(dirfd);
+
+		// determine the preferred architecture
+		struct elf_fat_arch_section fat_arch_section;
+		err = elf_find_best_fat_arch(path, &fat_arch_section);
+		_kernel_close(fd);
+
+		if (err != B_OK) {
+			TRACE(("team_create_thread_start: elf_find_best_fat_arch() failed:"
+				"%s\n", strerror(err)));
+			free_team_arg(teamArgs);
+			return err;
+		}
+
+		fat_arch_match.arch = fat_arch_section.arch;
+		fat_arch_match.flags = FATELF_MATCH_ALL;
 	}
-
-	fat_arch_match.arch = fat_arch_section.arch;
-	fat_arch_match.flags = FATELF_MATCH_ALL;
 
 	// set team args and update state
 	team->Lock();
