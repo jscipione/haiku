@@ -16,6 +16,11 @@
 
 struct kernel_args;
 
+struct elf_fat_section {
+	off_t offset;
+	off_t size;
+};
+
 
 struct elf_symbol_info {
 	addr_t	address;

@@ -11,6 +11,7 @@
 
 
 #include <elf.h>
+#include <fatelf.h>
 
 #include <OS.h>
 
@@ -44,6 +45,10 @@
 #include <arch/elf.h>
 #include <elf_priv.h>
 #include <boot/elf.h>
+
+#include "private/system/syscalls.h"
+#include "os/support/Errors.h"
+#include "private/kernel/elf.h"
 
 //#define TRACE_ELF
 #ifdef TRACE_ELF
@@ -1797,6 +1802,118 @@ elf_lookup_kernel_symbol(const char* name, elf_symbol_info* info)
 	return B_OK;
 }
 
+status_t
+elf_find_best_fat_arch(const char *path, Team *team, elf_fat_section *fat_section)
+{
+	FATELF_header fatHeader;
+	uint32_t bestScore = 0;
+	uint32_t magic;
+	status_t status;
+	ssize_t length;
+	int fd;
+
+	fd = _kern_open(-1, path, O_RDONLY, 0);
+	if (fd < 0)
+		return fd;
+
+	struct stat st;
+	status = _kern_read_stat(fd, NULL, false, &st, sizeof(st));
+	if (status != B_OK)
+		return status;
+
+	// read and determine the file type
+	length = _kern_read(fd, 0, &magic, sizeof(magic));
+	if (length < B_OK) {
+		status = length;
+		goto error;
+	}
+
+	if (length != sizeof(magic)) {
+		// short read
+		status = B_NOT_AN_EXECUTABLE;
+		goto error;
+	}
+
+	status = _kern_seek(fd, 0, SEEK_SET);
+	if (status < B_OK) {
+		goto error;
+	}
+
+	if (B_LENDIAN_TO_HOST_INT32(magic) != FATELF_MAGIC) {
+		// Not FatELF, try plain ELF.
+		elf_ehdr elfHeader;
+
+		length = _kern_read(fd, 0, &elfHeader, sizeof(elfHeader));
+		if (length < B_OK) {
+			status = length;
+			goto error;
+		}
+
+		if (length != sizeof(elfHeader)) {
+			// short read
+			status = B_NOT_AN_EXECUTABLE;
+			goto error;
+		}
+
+		status = verify_eheader(&elfHeader);
+		if (status < B_OK)
+			goto error;
+
+		fat_section->offset = 0;
+		fat_section->size = st.st_size;
+	}
+
+	// iterate the fat records
+	length = _kern_read(fd, 0, &fatHeader, sizeof(fatHeader));
+	if (length < B_OK) {
+		status = length;
+		goto error;
+	}
+
+	if (length != sizeof(fatHeader)) {
+		// short read
+		status = B_NOT_AN_EXECUTABLE;
+		goto error;
+	}
+
+	// Score the fat records
+	for (uint8_t i = 0; i < fatHeader.num_records; i++) {
+		FATELF_record fatRecord;
+		length = _kern_read(fd, 0, &fatRecord, sizeof(fatRecord));
+		if (length < B_OK) {
+			status = length;
+			goto error;
+		}
+
+		if (length != sizeof(fatRecord)) {
+			// short read
+			status = B_NOT_AN_EXECUTABLE;
+			goto error;
+		}
+
+		uint32_t score = arch_elf_score_abi_ident(
+			B_LENDIAN_TO_HOST_INT16(fatRecord.machine),
+			fatRecord.osabi, fatRecord.osabi_version, fatRecord.word_size,
+			fatRecord.byte_order);
+
+		if (score <= bestScore)
+			continue;
+
+		bestScore = score;
+		fat_section->offset = B_LENDIAN_TO_HOST_INT64(fatRecord.offset);
+		fat_section->size = B_LENDIAN_TO_HOST_INT64(fatRecord.size);
+	}
+
+	if (bestScore > 0)
+		status = B_OK;
+	else
+		status = B_MISMATCHING_ARCHITECTURE;
+
+error:
+	_kern_close(fd);
+
+	return status;
+}
 
 status_t
 elf_load_user_image(const char *path, Team *team, int flags, addr_t *entry)
