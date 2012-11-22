@@ -127,6 +127,8 @@ error_description(int error)
 			return "Missing library";
 		case B_MISSING_SYMBOL:
 			return "Symbol not found";
+		case B_MISMATCHING_ARCHITECTURE:
+			return "Executable not supported by this architecture";
 
 		case B_DEBUGGER_ALREADY_INSTALLED:
 			return "Debugger already installed for this team";
