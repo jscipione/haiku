@@ -55,6 +55,7 @@
 #include <util/AutoLock.h>
 
 #include "TeamThreadTables.h"
+#include "private/kernel/elf.h"
 
 
 //#define TRACE_TEAM
@@ -1529,6 +1530,23 @@ team_create_thread_start_internal(void* args)
 
 	TRACE(("team_create_thread_start: loading elf binary '%s'\n", path));
 
+	// determine the target binary architecture
+	// FATELF_TODO: The path needs to be normalized relative to cwd
+	struct elf_fat_arch_section fat_arch_section;
+	struct elf_fat_arch_match fat_arch_match;
+
+	err = elf_find_best_fat_arch(path, &fat_arch_section);
+	if (err != B_OK) {
+		TRACE((
+			"team_create_thread_start: elf_find_best_fat_arch() failed: %s\n",
+			strerror(err)));
+		free_team_arg(teamArgs);
+		return err;
+	}
+
+	fat_arch_match.arch = fat_arch_section.arch;
+	fat_arch_match.flags = FATELF_MATCH_ALL;
+
 	// set team args and update state
 	team->Lock();
 	team->SetArgs(path, teamArgs->flat_args + 1, argCount - 1);
@@ -1556,7 +1574,7 @@ team_create_thread_start_internal(void* args)
 
 		if (err == B_OK) {
 			err = elf_load_user_image(runtimeLoaderPath.Path(), team, 0,
-				&entry);
+				&entry, &fat_arch_match);
 		}
 	}
 

@@ -75,6 +75,11 @@ static elf_sym *elf_find_symbol(struct elf_image_info *image, const char *name,
 	const elf_version_info *version, bool lookupDefault);
 
 
+// Compatible with the arch_elf_score_abi_ident() invariants
+typedef uint32_t (*elf_fat_score_arch)(struct elf_fat_arch *arch, 
+	void *context);
+
+
 /*! Calculates hash for an image using its ID */
 static uint32
 image_hash(void *_image, const void *_key, uint32 range)
@@ -1802,8 +1807,12 @@ elf_lookup_kernel_symbol(const char* name, elf_symbol_info* info)
 	return B_OK;
 }
 
-status_t
-elf_find_best_fat_arch(const char *path, Team *team, elf_fat_section *fat_section)
+
+// Find an arch that scores best with the provided score_record() function
+// A score of 0 implies that a binary is not supported at all.
+static status_t
+elf_find_fat_arch(const char *path, elf_fat_score_arch score_arch,
+	void *context, struct elf_fat_arch_section *found_section)
 {
 	FATELF_header fatHeader;
 	uint32_t bestScore = 0;
@@ -1813,23 +1822,29 @@ elf_find_best_fat_arch(const char *path, Team *team, elf_fat_section *fat_sectio
 	int fd;
 
 	fd = _kern_open(-1, path, O_RDONLY, 0);
-	if (fd < 0)
+	if (fd < 0) {
+		dprintf("failed to open FATELF binary\n");
 		return fd;
+	}
 
 	struct stat st;
 	status = _kern_read_stat(fd, NULL, false, &st, sizeof(st));
-	if (status != B_OK)
+	if (status != B_OK) {
+		dprintf("could not stat FATELF binary\n");
 		return status;
+	}
 
 	// read and determine the file type
 	length = _kern_read(fd, 0, &magic, sizeof(magic));
 	if (length < B_OK) {
+		dprintf("read error on FATELF record\n");
 		status = length;
 		goto finished;
 	}
 
 	if (length != sizeof(magic)) {
 		// short read
+		dprintf("short read on FATELF magic\n");
 		status = B_NOT_AN_EXECUTABLE;
 		goto finished;
 	}
@@ -1845,12 +1860,14 @@ elf_find_best_fat_arch(const char *path, Team *team, elf_fat_section *fat_sectio
 
 		length = _kern_read(fd, 0, &elfHeader, sizeof(elfHeader));
 		if (length < B_OK) {
+			dprintf("read error on ELF header\n");
 			status = length;
 			goto finished;
 		}
 
 		if (length != sizeof(elfHeader)) {
 			// short read
+			dprintf("short read on ELF header\n");
 			status = B_NOT_AN_EXECUTABLE;
 			goto finished;
 		}
@@ -1859,22 +1876,43 @@ elf_find_best_fat_arch(const char *path, Team *team, elf_fat_section *fat_sectio
 		if (status < B_OK)
 			goto finished;
 
-		// File is not FAT, simply return the whole file.
-		fat_section->offset = 0;
-		fat_section->size = st.st_size;
-		status = B_OK;
+		// File is not FAT, simply return the thin ELF.
+		found_section->arch.osabi = elfHeader.e_ident[EI_OSABI];
+		found_section->arch.osabi_version = elfHeader.e_ident[EI_ABIVERSION];
+		found_section->arch.word_size = elfHeader.e_ident[EI_CLASS];
+		found_section->arch.byte_order = elfHeader.e_ident[EI_DATA];
+		if (elfHeader.e_ident[EI_DATA] == ELFDATA2LSB) {
+			found_section->arch.machine = B_LENDIAN_TO_HOST_INT32(
+				elfHeader.e_machine);
+		} else {
+			found_section->arch.machine = B_BENDIAN_TO_HOST_INT32(
+				elfHeader.e_machine);
+		}
+
+		found_section->offset = 0;
+		found_section->size = st.st_size;
+
+		if (score_arch(&found_section->arch, context) == 0) {
+			dprintf("architecture mismatch on thin ELF\n");
+			status = B_MISMATCHING_ARCHITECTURE;
+		} else {
+			status = B_OK;
+		}
+
 		goto finished;
 	}
 
 	// iterate the fat records
 	length = _kern_read(fd, 0, &fatHeader, sizeof(fatHeader));
 	if (length < B_OK) {
+		dprintf("read error on FATELF header\n");
 		status = length;
 		goto finished;
 	}
 
 	if (length != sizeof(fatHeader)) {
 		// short read
+		dprintf("short read on FATELF header\n");
 		status = B_NOT_AN_EXECUTABLE;
 		goto finished;
 	}
@@ -1884,33 +1922,42 @@ elf_find_best_fat_arch(const char *path, Team *team, elf_fat_section *fat_sectio
 		FATELF_record fatRecord;
 		length = _kern_read(fd, 0, &fatRecord, sizeof(fatRecord));
 		if (length < B_OK) {
+			dprintf("read error on FATELF record\n");
 			status = length;
 			goto finished;
 		}
 
 		if (length != sizeof(fatRecord)) {
 			// short read
+			dprintf("short read on FATELF record\n");
 			status = B_NOT_AN_EXECUTABLE;
 			goto finished;
 		}
 
-		uint32_t score = arch_elf_score_abi_ident(
-			B_LENDIAN_TO_HOST_INT16(fatRecord.machine),
-			fatRecord.osabi, fatRecord.osabi_version, fatRecord.word_size,
-			fatRecord.byte_order);
+		struct elf_fat_arch fat_arch;
+		fat_arch.machine = B_LENDIAN_TO_HOST_INT16(fatRecord.machine);
+		fat_arch.osabi = fatRecord.osabi;
+		fat_arch.osabi_version = fatRecord.osabi_version;
+		fat_arch.word_size = fatRecord.word_size;
+		fat_arch.byte_order = fatRecord.byte_order;
 
+		uint32_t score = score_arch(&fat_arch, context);
 		if (score <= bestScore)
 			continue;
 
 		bestScore = score;
-		fat_section->offset = B_LENDIAN_TO_HOST_INT64(fatRecord.offset);
-		fat_section->size = B_LENDIAN_TO_HOST_INT64(fatRecord.size);
+
+		found_section->arch = fat_arch;
+		found_section->offset = B_LENDIAN_TO_HOST_INT64(fatRecord.offset);
+		found_section->size = B_LENDIAN_TO_HOST_INT64(fatRecord.size);
 	}
 
-	if (bestScore > 0)
+	if (bestScore > 0) {
 		status = B_OK;
-	else
+	} else {
+		dprintf("no binaries found with a score > 0 in FATELF\n");
 		status = B_MISMATCHING_ARCHITECTURE;
+	}
 
 finished:
 	_kern_close(fd);
@@ -1918,8 +1965,56 @@ finished:
 	return status;
 }
 
+
+static uint32_t
+elf_score_best_fat_arch(struct elf_fat_arch *arch, void *context) {
+	return arch_elf_score_abi_ident(arch->machine, arch->osabi,
+		arch->osabi_version, arch->word_size, arch->byte_order);
+}
+
+
 status_t
-elf_load_user_image(const char *path, Team *team, int flags, addr_t *entry)
+elf_find_best_fat_arch(const char *path,
+	struct elf_fat_arch_section *found_section)
+{
+	return elf_find_fat_arch(path, elf_score_best_fat_arch, NULL,
+		found_section);
+}
+
+
+static uint32_t
+elf_score_matching_fat_arch(struct elf_fat_arch *arch, void *context) {
+	struct elf_fat_arch_match *m = (struct elf_fat_arch_match *) context;
+
+#define FAT_ARCH_MATCH(_flag, _value) do { \
+	if (m->flags & _flag && arch->_value != m->arch._value) { \
+		return 0; \
+	} \
+} while (0);
+
+	FAT_ARCH_MATCH(FATELF_MATCH_MACHINE, machine);
+	FAT_ARCH_MATCH(FATELF_MATCH_OSABI, osabi);
+	FAT_ARCH_MATCH(FATELF_MATCH_OSABIVER, osabi_version);
+	FAT_ARCH_MATCH(FATELF_MATCH_WORDSIZE, word_size);
+	FAT_ARCH_MATCH(FATELF_MATCH_BYTEORDER, byte_order);
+#undef FAT_ARCH_MATCH
+
+	return 1;
+}
+
+
+status_t elf_find_matching_fat_arch(const char *path,
+	struct elf_fat_arch_match *match,
+	struct elf_fat_arch_section *found_section)
+{
+	return elf_find_fat_arch(path, elf_score_matching_fat_arch, match,
+		found_section);
+}
+
+
+status_t
+elf_load_user_image(const char *path, Team *team, int flags, addr_t *entry,
+	struct elf_fat_arch_match *arch_required)
 {
 	elf_ehdr elfHeader;
 	elf_phdr *programHeaders = NULL;
@@ -1940,7 +2035,31 @@ elf_load_user_image(const char *path, Team *team, int flags, addr_t *entry)
 	if (status != B_OK)
 		return status;
 
+	// FATELF_TODO: Provide fd-based FATELF APIs, so we can open the target
+	// file only once.
+	off_t fileOffset = 0;
+	if (arch_required != NULL) {
+		struct elf_fat_arch_section fat_arch_section;
+		status = elf_find_matching_fat_arch(path, arch_required,
+			&fat_arch_section);
+
+		if (status != B_OK) {
+			dprintf("could not find FATELF image for requested image arch\n");
+			goto error;
+		}
+
+		fileOffset = fat_arch_section.offset;
+		st.st_size = fat_arch_section.size;
+	}
+
 	// read and verify the ELF header
+	if (fileOffset > 0) {
+		length = _kern_seek(fd, fileOffset, SEEK_SET);
+		if (length < B_OK) {
+			status = length;
+			goto error;
+		}
+	}
 
 	length = _kern_read(fd, 0, &elfHeader, sizeof(elfHeader));
 	if (length < B_OK) {
@@ -2020,6 +2139,8 @@ elf_load_user_image(const char *path, Team *team, int flags, addr_t *entry)
 				+ programHeaders[i].p_memsz;
 			size_t fileUpperBound = (programHeaders[i].p_vaddr % B_PAGE_SIZE)
 				+ programHeaders[i].p_filesz;
+			off_t mapOffset = fileOffset +
+				ROUNDDOWN(programHeaders[i].p_offset, B_PAGE_SIZE);
 
 			memUpperBound = ROUNDUP(memUpperBound, B_PAGE_SIZE);
 			fileUpperBound = ROUNDUP(fileUpperBound, B_PAGE_SIZE);
@@ -2029,7 +2150,7 @@ elf_load_user_image(const char *path, Team *team, int flags, addr_t *entry)
 			id = vm_map_file(team->id, regionName, (void **)&regionAddress,
 				B_EXACT_ADDRESS, fileUpperBound,
 				B_READ_AREA | B_WRITE_AREA, REGION_PRIVATE_MAP, false,
-				fd, ROUNDDOWN(programHeaders[i].p_offset, B_PAGE_SIZE));
+				fd, mapOffset);
 			if (id < B_OK) {
 				dprintf("error mapping file data: %s!\n", strerror(id));
 				status = B_NOT_AN_EXECUTABLE;
@@ -2077,11 +2198,13 @@ elf_load_user_image(const char *path, Team *team, int flags, addr_t *entry)
 
 			size_t segmentSize = ROUNDUP(programHeaders[i].p_memsz
 				+ (programHeaders[i].p_vaddr % B_PAGE_SIZE), B_PAGE_SIZE);
+			off_t mapOffset = fileOffset +
+				ROUNDDOWN(programHeaders[i].p_offset, B_PAGE_SIZE);
 
 			id = vm_map_file(team->id, regionName, (void **)&regionAddress,
 				B_EXACT_ADDRESS, segmentSize,
 				B_READ_AREA | B_EXECUTE_AREA, REGION_PRIVATE_MAP, false,
-				fd, ROUNDDOWN(programHeaders[i].p_offset, B_PAGE_SIZE));
+				fd, mapOffset);
 			if (id < B_OK) {
 				dprintf("error mapping file text: %s!\n", strerror(id));
 				status = B_NOT_AN_EXECUTABLE;

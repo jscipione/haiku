@@ -10,17 +10,31 @@
 
 
 #include <elf_common.h>
+#include <fatelf.h>
 #include <thread.h>
 #include <image.h>
 
 
 struct kernel_args;
 
-struct elf_fat_section {
+struct elf_fat_arch {
+	uint16_t machine;		/* maps to e_machine. */
+	uint8_t osabi;			/* maps to e_ident[EI_OSABI]. */
+	uint8_t osabi_version;	/* maps to e_ident[EI_ABIVERSION]. */
+	uint8_t word_size;		/* maps to e_ident[EI_CLASS]. */
+	uint8_t byte_order;		/* maps to e_ident[EI_DATA]. */
+};
+
+struct elf_fat_arch_match {
+	struct elf_fat_arch arch;
+	uint32_t flags;
+};
+
+struct elf_fat_arch_section {
+	struct elf_fat_arch arch;
 	off_t offset;
 	off_t size;
 };
-
 
 struct elf_symbol_info {
 	addr_t	address;
@@ -32,8 +46,15 @@ struct elf_symbol_info {
 extern "C" {
 #endif
 
+status_t elf_find_best_fat_arch(const char *path,
+		struct elf_fat_arch_section *found_section);
+
+status_t elf_find_matching_fat_arch(const char *path,
+	struct elf_fat_arch_match *match,
+	struct elf_fat_arch_section *found_section);
+
 status_t elf_load_user_image(const char *path, Team *team, int flags,
-	addr_t *_entry);
+	addr_t *entry, struct elf_fat_arch_match *arch_required);
 
 // these two might get public one day:
 image_id load_kernel_add_on(const char *path);
