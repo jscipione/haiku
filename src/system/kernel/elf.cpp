@@ -1825,18 +1825,18 @@ elf_find_best_fat_arch(const char *path, Team *team, elf_fat_section *fat_sectio
 	length = _kern_read(fd, 0, &magic, sizeof(magic));
 	if (length < B_OK) {
 		status = length;
-		goto error;
+		goto finished;
 	}
 
 	if (length != sizeof(magic)) {
 		// short read
 		status = B_NOT_AN_EXECUTABLE;
-		goto error;
+		goto finished;
 	}
 
 	status = _kern_seek(fd, 0, SEEK_SET);
 	if (status < B_OK) {
-		goto error;
+		goto finished;
 	}
 
 	if (B_LENDIAN_TO_HOST_INT32(magic) != FATELF_MAGIC) {
@@ -1846,34 +1846,37 @@ elf_find_best_fat_arch(const char *path, Team *team, elf_fat_section *fat_sectio
 		length = _kern_read(fd, 0, &elfHeader, sizeof(elfHeader));
 		if (length < B_OK) {
 			status = length;
-			goto error;
+			goto finished;
 		}
 
 		if (length != sizeof(elfHeader)) {
 			// short read
 			status = B_NOT_AN_EXECUTABLE;
-			goto error;
+			goto finished;
 		}
 
 		status = verify_eheader(&elfHeader);
 		if (status < B_OK)
-			goto error;
+			goto finished;
 
+		// File is not FAT, simply return the whole file.
 		fat_section->offset = 0;
 		fat_section->size = st.st_size;
+		status = B_OK;
+		goto finished;
 	}
 
 	// iterate the fat records
 	length = _kern_read(fd, 0, &fatHeader, sizeof(fatHeader));
 	if (length < B_OK) {
 		status = length;
-		goto error;
+		goto finished;
 	}
 
 	if (length != sizeof(fatHeader)) {
 		// short read
 		status = B_NOT_AN_EXECUTABLE;
-		goto error;
+		goto finished;
 	}
 
 	// Score the fat records
@@ -1882,13 +1885,13 @@ elf_find_best_fat_arch(const char *path, Team *team, elf_fat_section *fat_sectio
 		length = _kern_read(fd, 0, &fatRecord, sizeof(fatRecord));
 		if (length < B_OK) {
 			status = length;
-			goto error;
+			goto finished;
 		}
 
 		if (length != sizeof(fatRecord)) {
 			// short read
 			status = B_NOT_AN_EXECUTABLE;
-			goto error;
+			goto finished;
 		}
 
 		uint32_t score = arch_elf_score_abi_ident(
@@ -1909,7 +1912,7 @@ elf_find_best_fat_arch(const char *path, Team *team, elf_fat_section *fat_sectio
 	else
 		status = B_MISMATCHING_ARCHITECTURE;
 
-error:
+finished:
 	_kern_close(fd);
 
 	return status;
