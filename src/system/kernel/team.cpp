@@ -1532,6 +1532,12 @@ team_create_thread_start_internal(void* args)
 
 	// determine the target binary architecture
 	// FATELF_TODO: Evaluate the return codes used for failed vfs I/O
+	// FATELF_TODO: In the case that we can't sniff the target binary, we 
+	// should consider either:
+	//    - Fixing error reporting such that userspace receives a useful error,
+	//      as currently the thread is unceremoniously killed, or
+	//    - Falling through to the runtime_loader's error handling and let it
+	//      directly detect a bad executable.
 	struct elf_fat_arch_match fat_arch_match;
 	{
 		// FATELF_REVIEW: VFS expert. This needs to be reviewed for correctness,
