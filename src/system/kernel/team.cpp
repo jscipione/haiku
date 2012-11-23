@@ -1570,6 +1570,7 @@ team_create_thread_start_internal(void* args)
 		_kern_close(dirfd);
 		if (fd < B_OK) {
 			free_team_arg(teamArgs);
+			return fd;
 		}
 
 		// determine the preferred architecture
