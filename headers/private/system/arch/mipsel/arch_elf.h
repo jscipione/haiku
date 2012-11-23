@@ -6,6 +6,10 @@
 #define _SYSTEM_ARCH_MIPSEL_ELF_H
 
 
+#define ELF_MACHINE	EM_MIPS
+#define ELF_MACHINE_OK(x) ((x) == EM_MIPS)
+
+
 #warning DEFINE mipsel relocation types
 
 

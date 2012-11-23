@@ -7,6 +7,11 @@
 
 #include "arch_elf_boot.h"
 
+
+#define ELF_MACHINE	EM_X86_64
+#define ELF_MACHINE_OK(x) ((x) == EM_X86_64)
+
+
 #ifdef _BOOT_MODE
 # include "../x86/arch_elf_boot.h"
 #endif

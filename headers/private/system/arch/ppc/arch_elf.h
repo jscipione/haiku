@@ -5,6 +5,11 @@
 #ifndef _KERNEL_ARCH_PPC_ELF_H
 #define _KERNEL_ARCH_PPC_ELF_H
 
+
+#define ELF_MACHINE	EM_PPC
+#define ELF_MACHINE_OK(x) ((x) == EM_PPC)
+
+
 /* relocation types */
 
 #define	R_PPC_NONE				0

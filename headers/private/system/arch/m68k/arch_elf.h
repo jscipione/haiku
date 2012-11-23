@@ -5,6 +5,11 @@
 #ifndef _KERNEL_ARCH_M68K_ELF_H
 #define _KERNEL_ARCH_M68K_ELF_H
 
+
+#define ELF_MACHINE	EM_68K
+#define ELF_MACHINE_OK(x) ((x) == EM_68K)
+
+
 /* relocation types */
 
 #define	R_68K_NONE				0

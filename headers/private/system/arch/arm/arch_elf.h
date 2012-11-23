@@ -6,6 +6,9 @@
 #define _KERNEL_ARCH_ARM_ELF_H
 
 
+#define ELF_MACHINE	EM_ARM
+#define ELF_MACHINE_OK(x) ((x) == EM_ARM)
+
 
 /* ARM relocs.  */
 #define R_ARM_NONE              0       /* No reloc */
