@@ -1840,11 +1840,6 @@ elf_find_fat_arch(int fd, elf_fat_score_arch score_arch,
 		return B_NOT_AN_EXECUTABLE;
 	}
 
-	length = _kern_seek(fd, 0, SEEK_SET);
-	if (length < B_OK) {
-		return length;
-	}
-
 	if (B_LENDIAN_TO_HOST_INT32(magic) != FATELF_MAGIC) {
 		// Not FatELF, try plain ELF.
 		elf_ehdr elfHeader;
@@ -1905,7 +1900,8 @@ elf_find_fat_arch(int fd, elf_fat_score_arch score_arch,
 	// Score the fat records
 	for (uint8_t i = 0; i < fatHeader.num_records; i++) {
 		FATELF_record fatRecord;
-		length = _kern_read(fd, 0, &fatRecord, sizeof(fatRecord));
+		length = _kern_read(fd, FATELF_DISK_FORMAT_SIZE(i), &fatRecord, 
+			sizeof(fatRecord));
 		if (length < B_OK) {
 			dprintf("read error on FATELF record\n");
 			return B_NOT_AN_EXECUTABLE;
