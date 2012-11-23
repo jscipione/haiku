@@ -1534,20 +1534,48 @@ team_create_thread_start_internal(void* args)
 	// FATELF_TODO: Evaluate the return codes used for failed vfs I/O
 	struct elf_fat_arch_match fat_arch_match;
 	{
-		// Fetch the target executable, relative to the team's cwd
-		// FATELF_TODO: Is this the best approach? Are the locking and
-		// reference counting invariants being adhered to here?
-		int dirfd = vfs_open_vnode(team->io_context->cwd, O_RDONLY, true);
-		if (dirfd < B_OK)
+		// FATELF_REVIEW: VFS expert. This needs to be reviewed for correctness,
+		// and it may be better to hoist some of this out into vfs API.
+
+		// Open the target executable, with a path relative to the team's cwd
+		io_context *ioContext;
+		{
+			team->Lock();
+			ioContext = team->io_context;
+			vfs_get_io_context(ioContext);
+			team->Unlock();
+		}
+
+		int dirfd;
+		struct vnode *cwd;
+		{
+			MutexLocker ioContextLocker(ioContext->io_mutex);
+
+			// our reference to cwd will be claimed by vfs_open_vnode
+			// open success.
+			cwd = ioContext->cwd;
+			vfs_acquire_vnode(cwd);
+
+			dirfd = vfs_open_vnode(ioContext->cwd, O_RDONLY, true);
+			vfs_put_io_context(ioContext);
+		}
+
+		if (dirfd < B_OK) {
+			vfs_put_vnode(cwd);
+			free_team_arg(teamArgs);
 			return dirfd;
+		}
 
 		int fd = _kern_open(dirfd, path, O_RDONLY, 0);
-		_kernel_close(dirfd);
+		_kern_close(dirfd);
+		if (fd < B_OK) {
+			free_team_arg(teamArgs);
+		}
 
 		// determine the preferred architecture
 		struct elf_fat_arch_section fat_arch_section;
-		err = elf_find_best_fat_arch(path, &fat_arch_section);
-		_kernel_close(fd);
+		err = elf_find_best_fat_arch(fd, &fat_arch_section);
+		_kern_close(fd);
 
 		if (err != B_OK) {
 			TRACE(("team_create_thread_start: elf_find_best_fat_arch() failed:"
