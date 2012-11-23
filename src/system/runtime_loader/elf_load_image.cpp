@@ -356,8 +356,14 @@ parse_elf_header(elf_ehdr* eheader, int32* _pheaderSize,
 	if (memcmp(eheader->e_ident, ELF_MAGIC, 4) != 0)
 		return B_NOT_AN_EXECUTABLE;
 
-	if (eheader->e_ident[4] != ELF_CLASS)
-		return B_NOT_AN_EXECUTABLE;
+	if (eheader->e_ident[EI_CLASS] != ELF_CLASS)
+		return B_MISMATCHING_ARCHITECTURE;
+
+	if (eheader->e_ident[EI_DATA] != ELF_DATA)
+		return B_MISMATCHING_ARCHITECTURE;
+
+	if (!ELF_MACHINE_OK(eheader->e_machine))
+		return B_MISMATCHING_ARCHITECTURE;
 
 	if (eheader->e_phoff == 0)
 		return B_NOT_AN_EXECUTABLE;
