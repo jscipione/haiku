@@ -299,5 +299,10 @@ typedef uint16 elf_versym;
 #	define ELF_CLASS	ELFCLASS32
 #endif
 
+#if B_HOST_IS_LENDIAN
+#	define ELF_DATA		ELFDATA2LSB
+#else
+#	define ELF_DATA		ELFDATA2MSB
+#endif
 
 #endif	/* _ELF_COMMON_H_ */
