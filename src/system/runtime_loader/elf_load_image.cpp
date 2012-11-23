@@ -89,7 +89,8 @@ count_regions(const char* imagePath, char const* buff, int phnum, int phentsize)
 
 
 static status_t
-parse_program_headers(image_t* image, char* buff, int phnum, int phentsize)
+parse_program_headers(image_t* image, uint64_t imageOffset, char* buff,
+	int phnum, int phentsize)
 {
 	elf_phdr* pheader;
 	int regcount;
@@ -115,7 +116,8 @@ parse_program_headers(image_t* image, char* buff, int phnum, int phentsize)
 					image->regions[regcount].vmsize
 						= TO_PAGE_SIZE(pheader->p_memsz
 							+ PAGE_OFFSET(pheader->p_vaddr));
-					image->regions[regcount].fdstart = pheader->p_offset;
+					image->regions[regcount].fdstart
+						= imageOffset + pheader->p_offset;
 					image->regions[regcount].fdsize = pheader->p_filesz;
 					image->regions[regcount].delta = 0;
 					image->regions[regcount].flags = 0;
@@ -139,7 +141,8 @@ parse_program_headers(image_t* image, char* buff, int phnum, int phentsize)
 					image->regions[regcount].vmsize
 						= TO_PAGE_SIZE(pheader->p_filesz
 							+ PAGE_OFFSET(pheader->p_vaddr));
-					image->regions[regcount].fdstart = pheader->p_offset;
+					image->regions[regcount].fdstart
+						= imageOffset + pheader->p_offset;
 					image->regions[regcount].fdsize = pheader->p_filesz;
 					image->regions[regcount].delta = 0;
 					image->regions[regcount].flags = 0;
@@ -348,6 +351,58 @@ parse_dynamic_segment(image_t* image)
 
 // #pragma mark -
 
+status_t
+parse_fat_header(int fd, const char* path, elf_ehdr* eheader,
+	uint64_t* imageOffset, uint64_t* imageSize, int32* _pheaderSize, 
+	int32* _sheaderSize)
+{
+	FATELF_header fatHeader;
+	ssize_t length;
+
+	length = _kern_read(fd, 0, &fatHeader, sizeof(fatHeader));
+	if (length != sizeof(fatHeader)) {
+		FATAL("%s: Could not read FATELF header\n", path);
+		return length;
+	}
+
+	if (B_LENDIAN_TO_HOST_INT32(fatHeader.magic) != FATELF_MAGIC)
+		return B_NOT_AN_EXECUTABLE;
+
+	for (uint8_t i = 0; i < fatHeader.num_records; i++) {
+		FATELF_record fatRecord;
+
+		length = _kern_read(fd, FATELF_DISK_FORMAT_SIZE(i), &fatRecord,
+			sizeof(fatRecord));
+		if (length != sizeof(fatRecord)) {
+			FATAL("%s: Could not read FATELF record at index %" B_PRIu8 "\n",
+				path, i);
+			return length;
+		}
+
+		if (!ELF_MACHINE_OK(B_LENDIAN_TO_HOST_INT16(fatRecord.machine)))
+			continue;
+
+		if (fatRecord.word_size != ELF_CLASS)
+			continue;
+
+		if (fatRecord.byte_order != ELF_DATA)
+			continue;
+
+		*imageOffset = B_LENDIAN_TO_HOST_INT64(fatRecord.offset);
+		*imageSize = B_LENDIAN_TO_HOST_INT64(fatRecord.size);
+
+		length = _kern_read(fd, *imageOffset, eheader, sizeof(*eheader));
+		if (length != sizeof(*eheader)) {
+			FATAL("%s: Short ELF header read for FATELF record %" B_PRIu8 "\n",
+				path, i);
+			return B_NOT_AN_EXECUTABLE;
+		}
+
+		return parse_elf_header(eheader, _pheaderSize, _sheaderSize);
+	}
+
+	return B_MISMATCHING_ARCHITECTURE;
+}
 
 status_t
 parse_elf_header(elf_ehdr* eheader, int32* _pheaderSize,
@@ -389,6 +444,8 @@ load_image(char const* name, image_type type, const char* rpath,
 	char path[PATH_MAX];
 	ssize_t length;
 	char pheaderBuffer[4096];
+	uint64_t imageOffset;
+	uint64_t fatImageSize;
 	int32 numRegions;
 	image_t* found;
 	image_t* image;
@@ -461,10 +518,17 @@ load_image(char const* name, image_type type, const char* rpath,
 		goto err1;
 	}
 
+	imageOffset = 0x0;
+	fatImageSize = 0x0;
 	status = parse_elf_header(&eheader, &pheaderSize, &sheaderSize);
 	if (status < B_OK) {
-		FATAL("%s: Incorrect ELF header\n", path);
-		goto err1;
+		status = parse_fat_header(fd, path, &eheader, &imageOffset,
+			&fatImageSize, &pheaderSize, &sheaderSize);
+
+		if (status != B_OK) {
+			FATAL("%s: Incorrect ELF header\n", path);
+			goto err1;
+		}
 	}
 
 	// ToDo: what to do about this restriction??
@@ -475,7 +539,8 @@ load_image(char const* name, image_type type, const char* rpath,
 		goto err1;
 	}
 
-	length = _kern_read(fd, eheader.e_phoff, pheaderBuffer, pheaderSize);
+	length = _kern_read(fd, imageOffset + eheader.e_phoff, pheaderBuffer,
+		pheaderSize);
 	if (length != pheaderSize) {
 		FATAL("%s: Could not read program headers: %s\n", path,
 			strerror(length));
@@ -499,8 +564,8 @@ load_image(char const* name, image_type type, const char* rpath,
 		goto err1;
 	}
 
-	status = parse_program_headers(image, pheaderBuffer, eheader.e_phnum,
-		eheader.e_phentsize);
+	status = parse_program_headers(image, imageOffset, pheaderBuffer,
+		eheader.e_phnum, eheader.e_phentsize);
 	if (status < B_OK)
 		goto err2;
 

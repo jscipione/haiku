@@ -16,7 +16,7 @@
 
 #include <elf32.h>
 #include <elf64.h>
-
+#include <fatelf.h>
 
 // #pragma mark - runtime loader libroot interface
 

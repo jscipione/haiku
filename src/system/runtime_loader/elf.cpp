@@ -977,6 +977,10 @@ get_next_image_dependency(image_id id, uint32 *cookie, const char **_name)
 status_t
 elf_verify_header(void *header, size_t length)
 {
+	// FATELF_TODO: This ought to handle FatELF -and- ELF, but that will
+	// require reading the file.
+	return B_OK;
+
 	int32 programSize, sectionSize;
 
 	if (length < sizeof(elf_ehdr))
