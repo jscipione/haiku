@@ -16,8 +16,8 @@ struct elf_image_info;
 extern "C" {
 #endif
 
-// 'Score' an ELF binary ident. Arguments correspond to the matching FatELF
-//	fields.
+// Score an ELF binary ident. Arguments correspond to the matching FatELF
+// fields.
 //
 // Preference is given to binaries with a higher score. Binaries with a score
 // of 0 will be considered unsupported.

@@ -25,8 +25,13 @@
 #endif
 
 
+#ifdef _BOOT_MODE
+uint32_t boot_arch_elf_score_abi_ident(uint16_t machine, uint8_t osabi, 
+	uint8_t osabi_version, uint8_t word_size, uint8_t byte_order)
+#else
 uint32_t arch_elf_score_abi_ident(uint16_t machine, uint8_t osabi, 
 	uint8_t osabi_version, uint8_t word_size, uint8_t byte_order)
+#endif
 {
 	if (osabi != ELFOSABI_HAIKU)
 		return 0;
