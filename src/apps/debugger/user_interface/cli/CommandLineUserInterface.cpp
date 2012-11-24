@@ -1,5 +1,5 @@
 /*
- * Copyright 2011, Rene Gollent, rene@gollent.com.
+ * Copyright 2011-2012, Rene Gollent, rene@gollent.com.
  * Copyright 2012, Ingo Weinhold, ingo_weinhold@gmx.de.
  * Distributed under the terms of the MIT License.
  */
@@ -17,6 +17,7 @@
 
 #include "CliContext.h"
 #include "CliContinueCommand.h"
+#include "CliDebugReportCommand.h"
 #include "CliQuitCommand.h"
 #include "CliStackTraceCommand.h"
 #include "CliStopCommand.h"
@@ -87,9 +88,12 @@ private:
 // #pragma mark - CommandLineUserInterface
 
 
-CommandLineUserInterface::CommandLineUserInterface()
+CommandLineUserInterface::CommandLineUserInterface(bool saveReport,
+	const char* reportPath)
 	:
 	fCommands(20, true),
+	fReportPath(reportPath),
+	fSaveReport(saveReport),
 	fShowSemaphore(-1),
 	fShown(false),
 	fTerminating(false)
@@ -201,7 +205,18 @@ CommandLineUserInterface::Run()
 	if (error != B_OK)
 		return;
 
-	_InputLoop();
+	if (!fSaveReport)
+		_InputLoop();
+	else {
+		ArgumentVector args;
+		char buffer[256];
+		const char* parseErrorLocation;
+		snprintf(buffer, sizeof(buffer), "save-report %s",
+			fReportPath != NULL ? fReportPath : "");
+		args.Parse(buffer, &parseErrorLocation);
+		_ExecuteCommand(args.ArgumentCount(), args.Arguments());
+		fContext.QuitSession(true);
+	}
 
 	// Release the Show() semaphore to signal Terminate().
 	release_sem(fShowSemaphore);
@@ -281,6 +296,8 @@ CommandLineUserInterface::_RegisterCommands()
 		_RegisterCommand("continue", new(std::nothrow) CliContinueCommand) &&
 		_RegisterCommand("help", new(std::nothrow) HelpCommand(this)) &&
 		_RegisterCommand("quit", new(std::nothrow) CliQuitCommand) &&
+		_RegisterCommand("save-report",
+			new(std::nothrow) CliDebugReportCommand) &&
 		_RegisterCommand("sc", stackTraceCommandReference2.Detach()) &&
 		_RegisterCommand("stop", new(std::nothrow) CliStopCommand) &&
 		_RegisterCommand("thread", new(std::nothrow) CliThreadCommand) &&

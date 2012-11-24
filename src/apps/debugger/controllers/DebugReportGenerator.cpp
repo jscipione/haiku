@@ -6,8 +6,12 @@
 
 #include "DebugReportGenerator.h"
 
+#include <cpu_type.h>
+#include <system_revision.h>
+
 #include <AutoLocker.h>
 #include <File.h>
+#include <StringForSize.h>
 
 #include "Architecture.h"
 #include "CpuState.h"
@@ -100,6 +104,29 @@ DebugReportGenerator::_GenerateReportHeader(BString& _output)
 		fTeam->Name(), fTeam->ID());
 	_output << data;
 
+	// TODO: this information should probably be requested via the debugger
+	// interface, since e.g. in the case of a remote team, the report should
+	// include data about the target, not the debugging host
+	system_info info;
+	if (get_system_info(&info) == B_OK) {
+		data.SetToFormat("CPU(s): %" B_PRId32 "x %s %s\n",
+			info.cpu_count, get_cpu_vendor_string(info.cpu_type),
+			get_cpu_model_string(&info));
+		_output << data;
+		char maxSize[32];
+		char usedSize[32];
+
+		data.SetToFormat("Memory: %s total, %s used\n",
+			BPrivate::string_for_size((int64)info.max_pages * B_PAGE_SIZE,
+				maxSize, sizeof(maxSize)),
+			BPrivate::string_for_size((int64)info.used_pages * B_PAGE_SIZE,
+				usedSize, sizeof(usedSize)));
+		_output << data;
+	}
+
+	data.SetToFormat("Haiku revision: %s\n", __get_haiku_revision());
+	_output << data;
+
 	return B_OK;
 }
 
@@ -114,12 +141,18 @@ DebugReportGenerator::_DumpLoadedImages(BString& _output)
 	for (ImageList::ConstIterator it = fTeam->Images().GetIterator();
 		 Image* image = it.Next();) {
 		const ImageInfo& info = image->Info();
+		char buffer[32];
 		try {
-			data.SetToFormat("\t%s, id: %" B_PRId32", type: %" B_PRId32 ", "
-				"Text: 0x%" B_PRIx64 ", %" B_PRIu64 " bytes, Data: 0x%"
-				B_PRIx64 ", %" B_PRIu64 " bytes\n", info.Name().String(),
-				info.ImageID(), info.Type(), info.TextBase(), info.TextSize(),
-				info.DataBase(), info.DataSize());
+			target_addr_t textBase = info.TextBase();
+			target_addr_t dataBase = info.DataBase();
+
+			data.SetToFormat("\t%s (%" B_PRId32 ", %s) "
+				"Text: %#08" B_PRIx64 " - %#08" B_PRIx64 ", Data: %#08"
+				B_PRIx64 " - %#08" B_PRIx64 "\n", info.Name().String(),
+				info.ImageID(), UiUtils::ImageTypeToString(info.Type(),
+					buffer, sizeof(buffer)), textBase,
+				textBase + info.TextSize(), dataBase,
+				dataBase + info.DataSize());
 
 			_output << data;
 		} catch (...) {
@@ -177,7 +210,7 @@ DebugReportGenerator::_DumpDebuggedThreadInfo(BString& _output, Thread* thread)
 	BString data;
 	for (int32 i = 0; StackFrame* frame = trace->FrameAt(i); i++) {
 		char functionName[512];
-		data.SetToFormat("\t\t0x%08" B_PRIx64 "\t0x%08" B_PRIx64 "\t%s\n",
+		data.SetToFormat("\t\t%#08" B_PRIx64 "\t%#08" B_PRIx64 "\t%s\n",
 			frame->FrameAddress(), frame->InstructionPointer(),
 			UiUtils::FunctionNameForFrame(frame, functionName,
 				sizeof(functionName)));
