@@ -2021,15 +2021,8 @@ elf_load_user_image(const char *path, Team *team, int flags, addr_t *entry,
 		st.st_size = fat_arch_section.size;
 	}
 
-	// In the case of thin files, this will seek back to 0.
-	length = _kern_seek(fd, fileOffset, SEEK_SET);
-	if (length < B_OK) {
-		status = length;
-		goto error;
-	}
-
 	// read and verify the ELF header
-	length = _kern_read(fd, 0, &elfHeader, sizeof(elfHeader));
+	length = _kern_read(fd, fileOffset, &elfHeader, sizeof(elfHeader));
 	if (length < B_OK) {
 		status = length;
 		goto error;
@@ -2056,7 +2049,7 @@ elf_load_user_image(const char *path, Team *team, int flags, addr_t *entry,
 
 	TRACE(("reading in program headers at 0x%lx, length 0x%x\n",
 		elfHeader.e_phoff, elfHeader.e_phnum * elfHeader.e_phentsize));
-	length = _kern_read(fd, elfHeader.e_phoff, programHeaders,
+	length = _kern_read(fd, fileOffset + elfHeader.e_phoff, programHeaders,
 		elfHeader.e_phnum * elfHeader.e_phentsize);
 	if (length < B_OK) {
 		status = length;
