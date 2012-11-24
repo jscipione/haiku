@@ -55,7 +55,6 @@
 #include <util/AutoLock.h>
 
 #include "TeamThreadTables.h"
-#include "private/kernel/elf.h"
 
 
 //#define TRACE_TEAM

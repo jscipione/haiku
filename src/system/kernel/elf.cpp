@@ -46,7 +46,6 @@
 #include <elf_priv.h>
 #include <boot/elf.h>
 
-#include "private/kernel/elf.h"
 
 //#define TRACE_ELF
 #ifdef TRACE_ELF
