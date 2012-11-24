@@ -424,6 +424,11 @@ parse_elf_header(elf_ehdr* eheader, int32* _pheaderSize,
 	if (eheader->e_ident[EI_DATA] != ELF_DATA)
 		return B_MISMATCHING_ARCHITECTURE;
 
+	// FATELF_TODO: This should possibly return a different error code, as
+	// described in Issue #8520, such as B_MISMATCHING_PLATFORM
+	if (eheader->e_ident[EI_OSABI] != ELFOSABI_HAIKU)
+		return B_MISMATCHING_ARCHITECTURE;
+
 	if (!ELF_MACHINE_OK(eheader->e_machine))
 		return B_MISMATCHING_ARCHITECTURE;
 
