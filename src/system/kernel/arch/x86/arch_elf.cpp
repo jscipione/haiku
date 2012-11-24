@@ -14,7 +14,9 @@
 #include <KernelExport.h>
 
 #include <elf_priv.h>
+#include <arch/cpu.h>
 #include <arch/elf.h>
+#include <arch/system_info.h>
 
 
 //#define TRACE_ARCH_ELF
@@ -33,13 +35,26 @@ uint32_t arch_elf_score_abi_ident(uint16_t machine, uint8_t osabi,
 	uint8_t osabi_version, uint8_t word_size, uint8_t byte_order)
 #endif
 {
+	bool longMode = false;
+#ifdef _BOOT_MODE
+	// used to test x86-64 support while within an ia32-targeted boot loader
+	cpuid_info info;
+	get_current_cpuid(&info, 0x80000001);
+
+	if ((info.regs.edx & IA32_FEATURE_AMD_EXT_LONG) != 0)
+		longMode = true;
+
+#elif defined(__x86_64__)
+	longMode = true;
+#endif
+
 	if (osabi != ELFOSABI_HAIKU)
 		return 0;
 
 	if (osabi_version != 0)
 		return 0;
 
-	if (word_size != ELF_CLASS)
+	if (!longMode && word_size != ELF_CLASS)
 		return 0;
 
 	if (byte_order != ELF_DATA)
@@ -50,11 +65,13 @@ uint32_t arch_elf_score_abi_ident(uint16_t machine, uint8_t osabi,
 			return 1;
 		case EM_486:
 			return 2;
-#ifdef __x86_64__
-		// Prefer x86-64 if it's supported.
+
 		case EM_X86_64:
-			return 3;
-#endif /* __x86_64__ */
+			if (longMode)
+				return 3;
+
+			return 0;
+
 		default:
 			return 0;
 	}
