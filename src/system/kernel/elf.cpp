@@ -46,8 +46,6 @@
 #include <elf_priv.h>
 #include <boot/elf.h>
 
-#include "private/system/syscalls.h"
-#include "os/support/Errors.h"
 #include "private/kernel/elf.h"
 
 //#define TRACE_ELF
@@ -1955,6 +1953,30 @@ elf_find_best_fat_arch(int fd, struct elf_fat_arch_section *found_section)
 
 
 static uint32_t
+elf_score_compatible_fat_arch(struct elf_fat_arch *arch, void *context) {
+	// verify that the machine is compatible with the host process before
+	// handling the request off to the arch-specific function to score
+	// architecture types: we still want optimized binaries to be preferred
+	// over non-optimized forward-compatible binaries, and rely on the
+	// scoring system to do so.
+	if (!ELF_MACHINE_OK(arch->machine))
+		return 0;
+
+	return arch_elf_score_abi_ident(arch->machine, arch->osabi,
+		arch->osabi_version, arch->word_size, arch->byte_order);
+}
+
+
+// Find a FatELF architecture section that is compatible with the host process
+status_t elf_find_host_compatible_fat_arch(int fd,
+	struct elf_fat_arch_section* found_section)
+{
+		return elf_find_fat_arch(fd, elf_score_compatible_fat_arch, NULL,
+			found_section);
+}
+
+
+static uint32_t
 elf_score_matching_fat_arch(struct elf_fat_arch *arch, void *context) {
 	struct elf_fat_arch_match *m = (struct elf_fat_arch_match *) context;
 
@@ -1975,6 +1997,8 @@ elf_score_matching_fat_arch(struct elf_fat_arch *arch, void *context) {
 }
 
 
+// Find a FatELF architecture section that meets the provided match
+// requirements
 status_t elf_find_matching_fat_arch(int fd, struct elf_fat_arch_match *match,
 	struct elf_fat_arch_section *found_section)
 {
@@ -2218,6 +2242,7 @@ load_kernel_add_on(const char *path)
 	size_t reservedSize;
 	status_t status;
 	ssize_t length;
+	off_t fileOffset;
 	bool textSectionWritable = false;
 	int executableHeaderCount = 0;
 
@@ -2249,13 +2274,26 @@ load_kernel_add_on(const char *path)
 		goto done;
 	}
 
+	// find the correct architecture, using an exact match
+	fileOffset = 0;
+	{
+		struct elf_fat_arch_section fat_arch_section;
+		status = elf_find_host_compatible_fat_arch(fd, &fat_arch_section);
+		if (status != B_OK) {
+			dprintf("could not find FATELF image for requested image arch\n");
+			goto error;
+		}
+
+		fileOffset = fat_arch_section.offset;
+	}
+
 	elfHeader = (elf_ehdr *)malloc(sizeof(*elfHeader));
 	if (!elfHeader) {
 		status = B_NO_MEMORY;
 		goto error;
 	}
 
-	length = _kern_read(fd, 0, elfHeader, sizeof(*elfHeader));
+	length = _kern_read(fd, fileOffset, elfHeader, sizeof(*elfHeader));
 	if (length < B_OK) {
 		status = length;
 		goto error1;
@@ -2290,7 +2328,7 @@ load_kernel_add_on(const char *path)
 	TRACE(("reading in program headers at 0x%lx, length 0x%x\n",
 		elfHeader->e_phoff, elfHeader->e_phnum * elfHeader->e_phentsize));
 
-	length = _kern_read(fd, elfHeader->e_phoff, programHeaders,
+	length = _kern_read(fd, fileOffset + elfHeader->e_phoff, programHeaders,
 		elfHeader->e_phnum * elfHeader->e_phentsize);
 	if (length < B_OK) {
 		status = length;
@@ -2416,7 +2454,7 @@ load_kernel_add_on(const char *path)
 		TRACE(("elf_load_kspace: created area \"%s\" at %p\n",
 			regionName, (void *)region->start));
 
-		length = _kern_read(fd, programHeaders[i].p_offset,
+		length = _kern_read(fd, fileOffset + programHeaders[i].p_offset,
 			(void *)(region->start + (programHeaders[i].p_vaddr % B_PAGE_SIZE)),
 			programHeaders[i].p_filesz);
 		if (length < B_OK) {

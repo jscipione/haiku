@@ -49,6 +49,9 @@ extern "C" {
 status_t elf_find_best_fat_arch(int fd,
 		struct elf_fat_arch_section *found_section);
 
+status_t elf_find_host_compatible_fat_arch(int fd,
+	struct elf_fat_arch_section* found_section);
+
 status_t elf_find_matching_fat_arch(int fd, struct elf_fat_arch_match *match,
 	struct elf_fat_arch_section *found_section);
 
