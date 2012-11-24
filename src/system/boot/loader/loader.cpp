@@ -20,12 +20,11 @@
 #include <unistd.h>
 #include <string.h>
 
-#ifndef BOOT_ARCH
-#	error BOOT_ARCH has to be defined to differentiate the kernel per platform
-#endif
 
-#define KERNEL_IMAGE			"kernel_" BOOT_ARCH
-#define KERNEL_PATH				"system/" KERNEL_IMAGE
+#ifdef BOOT_ARCH
+# define KERNEL_IMAGE			"kernel_" BOOT_ARCH
+# define KERNEL_PATH			"system/" KERNEL_IMAGE
+#endif
 
 #ifdef ALTERNATE_BOOT_ARCH
 # define ALTERNATE_KERNEL_IMAGE	"kernel_" ALTERNATE_BOOT_ARCH
@@ -34,10 +33,13 @@
 
 
 static const char *sKernelPaths[][2] = {
+#ifdef BOOT_ARCH
 	{ KERNEL_PATH, KERNEL_IMAGE },
+#endif
 #ifdef ALTERNATE_BOOT_ARCH
 	{ ALTERNATE_KERNEL_PATH, ALTERNATE_KERNEL_IMAGE },
 #endif
+	{ "system/kernel", "kernel" },
 	{ NULL, NULL },
 };
 
