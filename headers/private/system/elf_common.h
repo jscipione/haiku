@@ -108,6 +108,8 @@
 #define ELFOSABI_ARM		97	// ARM
 #define ELFOSABI_STANDALONE	255	// Standalone (embedded) application
 
+#define ELFOSABI_SYSV		ELFOSABI_NONE	// symbol used in 1998 ELF spec
+#define ELFOSABI_HAIKU		ELFOSABI_NONE	// FATELF_TODO: Evaluate new OSABI
 
 /*** section header ***/
 
