@@ -77,7 +77,7 @@ int resolve_symbol(image_t* rootImage, image_t* image, elf_sym* sym,
 	SymbolLookupCache* cache, addr_t* sym_addr);
 
 
-status_t elf_verify_header(void* header, size_t length);
+status_t elf_verify_header(int fd, const char* path, elf_ehdr* eheader);
 void rldelf_init(void);
 void rldexport_init(void);
 status_t elf_reinit_after_fork(void);

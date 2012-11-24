@@ -973,20 +973,29 @@ get_next_image_dependency(image_id id, uint32 *cookie, const char **_name)
 //	#pragma mark - runtime_loader private exports
 
 
-/*! Read and verify the ELF header */
+/*! Read and verify the (Fat)ELF header */
 status_t
-elf_verify_header(void *header, size_t length)
+elf_verify_header(int fd, const char* path, elf_ehdr* eheader)
 {
-	// FATELF_TODO: This ought to handle FatELF -and- ELF, but that will
-	// require reading the file.
-	return B_OK;
-
 	int32 programSize, sectionSize;
+	status_t status;
+	ssize_t length;
 
-	if (length < sizeof(elf_ehdr))
+	length = _kern_read(fd, 0, eheader, sizeof(*eheader));
+	if (length != sizeof(*eheader)) {
 		return B_NOT_AN_EXECUTABLE;
+	}
 
-	return parse_elf_header((elf_ehdr *)header, &programSize, &sectionSize);
+	status = parse_elf_header(eheader, &programSize, &sectionSize);
+	if (status != B_OK) {
+		uint64_t fatOffset;
+		uint64_t fatSize;
+
+		status = parse_fat_header(fd, path, eheader, &fatOffset, &fatSize,
+			&programSize, &sectionSize);
+	}
+
+	return status;
 }
 
 

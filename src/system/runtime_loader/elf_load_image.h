@@ -8,6 +8,9 @@
 #include "runtime_loader_private.h"
 
 
+status_t	parse_fat_header(int fd, const char* path, elf_ehdr* eheader,
+				uint64_t* imageOffset, uint64_t* imageSize, int32* _pheaderSize,
+				int32* _sheaderSize);
 status_t	parse_elf_header(elf_ehdr* eheader, int32* _pheaderSize,
 				int32* _sheaderSize);
 status_t	load_image(char const* name, image_type type, const char* rpath,

@@ -302,7 +302,6 @@ test_executable(const char *name, char *invoker)
 	char buffer[B_FILE_NAME_LENGTH];
 		// must be large enough to hold the ELF header
 	status_t status;
-	ssize_t length;
 	int fd;
 
 	if (name == NULL)
@@ -319,20 +318,13 @@ test_executable(const char *name, char *invoker)
 	if (status != B_OK)
 		goto out;
 
-	// read and verify the ELF header
-
-	length = _kern_read(fd, 0, buffer, sizeof(buffer));
-	if (length < 0) {
-		status = length;
-		goto out;
-	}
-
-	status = elf_verify_header(buffer, length);
+	// verify the (Fat)ELF headers
+	status = elf_verify_header(fd, name, (elf_ehdr *)buffer);
 	if (status == B_NOT_AN_EXECUTABLE) {
 		// test for shell scripts
 		if (!strncmp(buffer, "#!", 2)) {
 			char *end;
-			buffer[min_c((size_t)length, sizeof(buffer) - 1)] = '\0';
+			buffer[min_c(sizeof(elf_ehdr), sizeof(buffer) - 1)] = '\0';
 
 			end = strchr(buffer, '\n');
 			if (end == NULL) {
