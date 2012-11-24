@@ -129,6 +129,8 @@ error_description(int error)
 			return "Symbol not found";
 		case B_MISMATCHING_ARCHITECTURE:
 			return "Executable not supported by this architecture";
+		case B_MISMATCHING_PLATFORM:
+			return "Executable not supported by this platform";
 
 		case B_DEBUGGER_ALREADY_INSTALLED:
 			return "Debugger already installed for this team";
