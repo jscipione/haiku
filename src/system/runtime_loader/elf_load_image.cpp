@@ -379,6 +379,13 @@ parse_fat_header(int fd, const char* path, elf_ehdr* eheader,
 			return length;
 		}
 
+		// FATELF_NOTE: This code currently simply validates that the
+		// machine type, word size, and byte order directly match.
+		//
+		// This could perform much smarter checking when working with
+		// upward-compatible ABI variations and instruction sets; ie,
+		// ARMv6+hardfloat binaries could be linked against ARMv7 libraries,
+		// avoiding the need to load a duplicate set of system libraries.
 		if (!ELF_MACHINE_OK(B_LENDIAN_TO_HOST_INT16(fatRecord.machine)))
 			continue;
 
@@ -521,7 +528,7 @@ load_image(char const* name, image_type type, const char* rpath,
 	imageOffset = 0x0;
 	fatImageSize = 0x0;
 	status = parse_elf_header(&eheader, &pheaderSize, &sheaderSize);
-	if (status < B_OK) {
+	if (status == B_NOT_AN_EXECUTABLE) {
 		status = parse_fat_header(fd, path, &eheader, &imageOffset,
 			&fatImageSize, &pheaderSize, &sheaderSize);
 

@@ -987,7 +987,7 @@ elf_verify_header(int fd, const char* path, elf_ehdr* eheader)
 	}
 
 	status = parse_elf_header(eheader, &programSize, &sectionSize);
-	if (status != B_OK) {
+	if (status == B_NOT_AN_EXECUTABLE) {
 		uint64_t fatOffset;
 		uint64_t fatSize;
 
