@@ -1464,6 +1464,65 @@ create_team_arg(struct team_arg** _teamArg, const char* path, char** flatArgs,
 	return B_OK;
 }
 
+// FATELF_REVIEW: VFS expert. This needs to be reviewed for correctness,
+// and it may be better to hoist some of this out into vfs API.
+static status_t
+team_create_thread_start_determine_arch(Team* team, const char* path,
+	struct elf_fat_arch_match* fat_arch_match)
+{
+	io_context* ioContext;
+	struct vnode* cwd;
+	int dirfd;
+	int fd;
+	status_t err;
+
+	// Open the target executable, with a path relative to the team's cwd
+	{
+		team->Lock();
+		ioContext = team->io_context;
+		vfs_get_io_context(ioContext);
+		team->Unlock();
+	}
+
+	{
+		MutexLocker ioContextLocker(ioContext->io_mutex);
+		cwd = ioContext->cwd;
+		vfs_acquire_vnode(cwd);
+	}
+
+	// our reference to cwd will be claimed by vfs_open_vnode
+	// open success. otherwise, we're responsible for releasing it.
+	dirfd = vfs_open_vnode(ioContext->cwd, O_RDONLY, true);
+	if (dirfd < B_OK) {
+		vfs_put_vnode(cwd);
+		return dirfd;
+	}
+
+	fd = _kern_open(dirfd, path, O_RDONLY, 0);
+	if (fd < B_OK) {
+		err = fd;
+		goto finished;
+	}
+
+	// determine the preferred architecture
+	struct elf_fat_arch_section fat_arch_section;
+	err = elf_find_best_fat_arch(fd, &fat_arch_section);
+	if (err != B_OK)
+		goto finished;
+
+	fat_arch_match->arch = fat_arch_section.arch;
+	fat_arch_match->flags = FATELF_MATCH_ALL;
+	err = B_OK;
+
+finished:
+	vfs_put_io_context(ioContext);
+	_kern_close(dirfd);
+
+	if (fd >= 0)
+		_kern_close(fd);
+
+	return err;
+}
 
 static status_t
 team_create_thread_start_internal(void* args)
@@ -1530,69 +1589,17 @@ team_create_thread_start_internal(void* args)
 
 	TRACE(("team_create_thread_start: loading elf binary '%s'\n", path));
 
-	// determine the target binary architecture
-	// FATELF_TODO: Evaluate the return codes used for failed vfs I/O
-	// FATELF_TODO: In the case that we can't sniff the target binary, we 
-	// should consider either:
-	//    - Fixing error reporting such that userspace receives a useful error,
-	//      as currently the thread is unceremoniously killed, or
-	//    - Falling through to the runtime_loader's error handling and let it
-	//      directly detect a bad executable.
-	struct elf_fat_arch_match fat_arch_match;
-	{
-		// FATELF_REVIEW: VFS expert. This needs to be reviewed for correctness,
-		// and it may be better to hoist some of this out into vfs API.
-
-		// Open the target executable, with a path relative to the team's cwd
-		io_context *ioContext;
-		{
-			team->Lock();
-			ioContext = team->io_context;
-			vfs_get_io_context(ioContext);
-			team->Unlock();
-		}
-
-		int dirfd;
-		struct vnode *cwd;
-		{
-			MutexLocker ioContextLocker(ioContext->io_mutex);
-
-			// our reference to cwd will be claimed by vfs_open_vnode
-			// open success.
-			cwd = ioContext->cwd;
-			vfs_acquire_vnode(cwd);
-
-			dirfd = vfs_open_vnode(ioContext->cwd, O_RDONLY, true);
-			vfs_put_io_context(ioContext);
-		}
-
-		if (dirfd < B_OK) {
-			vfs_put_vnode(cwd);
-			free_team_arg(teamArgs);
-			return dirfd;
-		}
-
-		int fd = _kern_open(dirfd, path, O_RDONLY, 0);
-		_kern_close(dirfd);
-		if (fd < B_OK) {
-			free_team_arg(teamArgs);
-			return fd;
-		}
-
-		// determine the preferred architecture
-		struct elf_fat_arch_section fat_arch_section;
-		err = elf_find_best_fat_arch(fd, &fat_arch_section);
-		_kern_close(fd);
-
-		if (err != B_OK) {
-			TRACE(("team_create_thread_start: elf_find_best_fat_arch() failed:"
-				"%s\n", strerror(err)));
-			free_team_arg(teamArgs);
-			return err;
-		}
-
-		fat_arch_match.arch = fat_arch_section.arch;
-		fat_arch_match.flags = FATELF_MATCH_ALL;
+	// determine the target binary architecture; on failure, we just allow
+	// any arch and let the runtime_loader report an appropriate error.
+	struct elf_fat_arch_match fat_arch_result;
+	struct elf_fat_arch_match* required_arch_match;
+	err = team_create_thread_start_determine_arch(team, path, &fat_arch_result);
+	if (err == B_OK) {
+		required_arch_match = &fat_arch_result;
+	} else {
+		TRACE(("team_create_thread_start: elf_find_best_fat_arch() failed:"
+			"%s\n", strerror(err)));
+		required_arch_match = NULL;
 	}
 
 	// set team args and update state
@@ -1622,7 +1629,7 @@ team_create_thread_start_internal(void* args)
 
 		if (err == B_OK) {
 			err = elf_load_user_image(runtimeLoaderPath.Path(), team, 0,
-				&entry, &fat_arch_match);
+				&entry, required_arch_match);
 		}
 	}
 
