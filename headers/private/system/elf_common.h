@@ -88,6 +88,26 @@
 #define ELFDATA2LSB	1	/* little endian */
 #define ELFDATA2MSB	2	/* big endian */
 
+// abis (EI_OSABI)
+#define ELFOSABI_NONE		0	// UNIX System V ABI
+#define ELFOSABI_HPUX		1	// HP-UX operating system
+#define ELFOSABI_NETBSD		2	// NetBSD
+#define ELFOSABI_LINUX		3	// GNU/Linux
+#define ELFOSABI_HURD		4	// GNU/Hurd
+#define ELFOSABI_86OPEN		5	// 86Open common IA32 ABI
+#define ELFOSABI_SOLARIS	6	// Solaris
+#define ELFOSABI_AIX		7	// AIX
+#define ELFOSABI_IRIX		8	// IRIX
+#define ELFOSABI_FREEBSD	9	// FreeBSD
+#define ELFOSABI_TRU64		10	// TRU64 UNIX
+#define ELFOSABI_MODESTO	11	// Novell Modesto
+#define ELFOSABI_OPENBSD	12	// OpenBSD
+#define ELFOSABI_OPENVMS	13	// Open VMS
+#define ELFOSABI_NSK		14	// HP Non-Stop Kernel
+#define ELFOSABI_AROS		15	// Amiga Research OS
+#define ELFOSABI_ARM		97	// ARM
+#define ELFOSABI_STANDALONE	255	// Standalone (embedded) application
+
 
 /*** section header ***/
 
