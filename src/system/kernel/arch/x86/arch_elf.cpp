@@ -28,6 +28,18 @@
 uint32_t arch_elf_score_abi_ident(uint16_t machine, uint8_t osabi, 
 	uint8_t osabi_version, uint8_t word_size, uint8_t byte_order)
 {
+	if (osabi != ELFOSABI_HAIKU)
+		return 0;
+
+	if (osabi_version != 0)
+		return 0;
+
+	if (word_size != ELF_CLASS)
+		return 0;
+
+	if (byte_order != ELF_DATA)
+		return 0;
+
 	switch (machine) {
 		case EM_386:
 			return 1;
