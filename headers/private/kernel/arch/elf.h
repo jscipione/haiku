@@ -19,7 +19,9 @@ extern "C" {
 
 // Preference should be given to binaries with a higher score. Binaries with a
 // score of 0 should be considered unsupported.
-extern uint32_t arch_elf_score_abi_ident(struct elf_image_arch *arch);
+extern uint32_t arch_elf_score_image_arch(struct elf_image_arch *arch);
+extern bool arch_elf_arch_compat(struct elf_image_arch *hostArch,
+	struct elf_image_arch *imageArch);
 
 extern int arch_elf_relocate_rel(struct elf_image_info *image,
 	struct elf_image_info *resolve_image, elf_rel *rel, int rel_len);

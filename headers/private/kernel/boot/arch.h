@@ -12,6 +12,11 @@
 
 /* ELF support */
 
+
+extern uint32_t boot_arch_elf_score_image_arch(struct elf_image_arch* arch);
+extern bool boot_arch_elf_arch_compat(struct elf_image_arch* hostArch,
+	struct elf_image_arch* imageArch);
+
 extern status_t boot_arch_elf_relocate_rel(preloaded_elf32_image* image,
 	struct Elf32_Rel* rel, int rel_len);
 extern status_t boot_arch_elf_relocate_rel(preloaded_elf64_image* image,

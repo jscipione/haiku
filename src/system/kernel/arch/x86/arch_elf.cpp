@@ -29,9 +29,43 @@
 
 
 #ifdef _BOOT_MODE
-uint32_t boot_arch_elf_score_abi_ident(struct elf_image_arch *arch)
+bool boot_arch_elf_arch_compat(struct elf_image_arch* hostArch,
+	struct elf_image_arch* imageArch)
 #else
-uint32_t arch_elf_score_abi_ident(struct elf_image_arch *arch)
+bool arch_elf_arch_compat(struct elf_image_arch* hostArch,
+	struct elf_image_arch* imageArch)
+#endif
+{
+	uint16_t compatMachine;
+
+	if (hostArch->osabi != imageArch->osabi)
+		return false;
+
+	if (hostArch->osabi_version != imageArch->osabi_version)
+		return false;
+
+	if (hostArch->word_size != imageArch->word_size)
+		return false;
+
+	if (hostArch->byte_order != imageArch->byte_order)
+		return false;
+
+	// Some architectures are forwards (but not backwards) ABI-compatible
+	compatMachine = imageArch->machine;
+	if (compatMachine == EM_386)
+		compatMachine = EM_486;
+
+	if (hostArch->machine != compatMachine)
+		return false;
+
+	return true;
+}
+
+
+#ifdef _BOOT_MODE
+uint32_t boot_arch_elf_score_image_arch(struct elf_image_arch *arch)
+#else
+uint32_t arch_elf_score_image_arch(struct elf_image_arch *arch)
 #endif
 {
 	bool longMode = false;

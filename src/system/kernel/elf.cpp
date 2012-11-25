@@ -72,7 +72,7 @@ static elf_sym *elf_find_symbol(struct elf_image_info *image, const char *name,
 	const elf_version_info *version, bool lookupDefault);
 
 
-// Compatible with the arch_elf_score_abi_ident() invariants
+// Compatible with the arch_elf_score_image_arch() invariants
 typedef uint32_t (*elf_fat_score_arch)(struct elf_image_arch *arch, 
 	void *context);
 
@@ -1939,7 +1939,7 @@ elf_find_fat_arch(int fd, elf_fat_score_arch score_arch,
 
 static uint32_t
 elf_score_best_fat_arch(struct elf_image_arch *arch, void *context) {
-	return arch_elf_score_abi_ident(arch);
+	return arch_elf_score_image_arch(arch);
 }
 
 
@@ -1960,7 +1960,7 @@ elf_score_compatible_fat_arch(struct elf_image_arch *arch, void *context) {
 	if (!ELF_MACHINE_OK(arch->machine))
 		return 0;
 
-	return arch_elf_score_abi_ident(arch);
+	return arch_elf_score_image_arch(arch);
 }
 
 
