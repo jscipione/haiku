@@ -1977,18 +1977,18 @@ static uint32_t
 elf_score_matching_fat_arch(struct elf_image_arch *arch, void *context) {
 	struct elf_fat_arch_match *m = (struct elf_fat_arch_match *) context;
 
-#define FAT_ARCH_MATCH(_flag, _value) do { \
+#define ARCH_MATCH(_flag, _value) do { \
 	if (m->flags & _flag && arch->_value != m->arch._value) { \
 		return 0; \
 	} \
 } while (0);
 
-	FAT_ARCH_MATCH(FATELF_MATCH_MACHINE, machine);
-	FAT_ARCH_MATCH(FATELF_MATCH_OSABI, osabi);
-	FAT_ARCH_MATCH(FATELF_MATCH_OSABIVER, osabi_version);
-	FAT_ARCH_MATCH(FATELF_MATCH_WORDSIZE, word_size);
-	FAT_ARCH_MATCH(FATELF_MATCH_BYTEORDER, byte_order);
-#undef FAT_ARCH_MATCH
+	ARCH_MATCH(ELF_MATCH_MACHINE, machine);
+	ARCH_MATCH(ELF_MATCH_OSABI, osabi);
+	ARCH_MATCH(ELF_MATCH_OSABIVER, osabi_version);
+	ARCH_MATCH(ELF_MATCH_WORDSIZE, word_size);
+	ARCH_MATCH(ELF_MATCH_BYTEORDER, byte_order);
+#undef ARCH_MATCH
 
 	return 1;
 }

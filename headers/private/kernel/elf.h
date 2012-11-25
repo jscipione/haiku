@@ -27,6 +27,8 @@ struct elf_image_arch {
 
 struct elf_fat_arch_match {
 	struct elf_image_arch arch;
+
+	// ELF_MATCH_* flags
 	uint32_t flags;
 };
 
@@ -41,6 +43,13 @@ struct elf_symbol_info {
 	size_t	size;
 };
 
+/* FATELF matching flags */
+#define ELF_MATCH_MACHINE	(1 << 0)
+#define ELF_MATCH_OSABI		(1 << 1)
+#define ELF_MATCH_OSABIVER	(1 << 2)
+#define ELF_MATCH_WORDSIZE	(1 << 3)
+#define ELF_MATCH_BYTEORDER	(1 << 4)
+#define ELF_MATCH_ALL		0xFFFF
 
 #ifdef __cplusplus
 extern "C" {

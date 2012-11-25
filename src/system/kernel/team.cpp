@@ -1510,7 +1510,7 @@ team_create_thread_start_determine_arch(Team* team, const char* path,
 		goto finished;
 
 	fat_arch_match->arch = fat_arch_section.arch;
-	fat_arch_match->flags = FATELF_MATCH_ALL;
+	fat_arch_match->flags = ELF_MATCH_ALL;
 	err = B_OK;
 
 finished:

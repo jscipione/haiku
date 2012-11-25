@@ -28,14 +28,6 @@
 #define FATELF_LITTLEENDIAN (1)
 #define FATELF_BIGENDIAN	(2)
 
-/* FATELF matching flags */
-#define FATELF_MATCH_MACHINE	(1 << 0)
-#define FATELF_MATCH_OSABI		(1 << 1)
-#define FATELF_MATCH_OSABIVER	(1 << 2)
-#define FATELF_MATCH_WORDSIZE	(1 << 3)
-#define FATELF_MATCH_BYTEORDER	(1 << 4)
-#define FATELF_MATCH_ALL		0xFFFF
-
 /* Values on disk are always littleendian, and align like Elf64. */
 typedef struct FATELF_record
 {
