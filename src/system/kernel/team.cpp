@@ -1467,7 +1467,7 @@ create_team_arg(struct team_arg** _teamArg, const char* path, char** flatArgs,
 // and it may be better to hoist some of this out into vfs API.
 static status_t
 team_create_thread_start_determine_arch(Team* team, const char* path,
-	struct elf_fat_arch_match* fat_arch_match)
+	struct elf_image_arch* image_arch)
 {
 	io_context* ioContext;
 	struct vnode* cwd;
@@ -1509,8 +1509,7 @@ team_create_thread_start_determine_arch(Team* team, const char* path,
 	if (err != B_OK)
 		goto finished;
 
-	fat_arch_match->arch = fat_arch_section.arch;
-	fat_arch_match->flags = ELF_MATCH_ALL;
+	*image_arch = fat_arch_section.arch;
 	err = B_OK;
 
 finished:
@@ -1590,15 +1589,17 @@ team_create_thread_start_internal(void* args)
 
 	// determine the target binary architecture; on failure, we just allow
 	// any arch and let the runtime_loader report an appropriate error.
-	struct elf_fat_arch_match fat_arch_result;
-	struct elf_fat_arch_match* required_arch_match;
-	err = team_create_thread_start_determine_arch(team, path, &fat_arch_result);
-	if (err == B_OK) {
-		required_arch_match = &fat_arch_result;
-	} else {
-		TRACE(("team_create_thread_start: elf_find_best_fat_arch() failed:"
-			"%s\n", strerror(err)));
-		required_arch_match = NULL;
+	struct elf_image_arch *requiredArch;
+	{
+		struct elf_image_arch archResult;
+		err = team_create_thread_start_determine_arch(team, path, &archResult);
+		if (err == B_OK) {
+			requiredArch = &archResult;
+		} else {
+			TRACE(("team_create_thread_start: elf_find_best_fat_arch() failed:"
+				"%s\n", strerror(err)));
+			requiredArch = NULL;
+		}
 	}
 
 	// set team args and update state
@@ -1628,7 +1629,7 @@ team_create_thread_start_internal(void* args)
 
 		if (err == B_OK) {
 			err = elf_load_user_image(runtimeLoaderPath.Path(), team, 0,
-				&entry, required_arch_match);
+				&entry, requiredArch);
 		}
 	}
 

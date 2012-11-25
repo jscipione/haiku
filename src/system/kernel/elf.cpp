@@ -1974,39 +1974,30 @@ status_t elf_find_host_compatible_fat_arch(int fd,
 
 
 static uint32_t
-elf_score_matching_fat_arch(struct elf_image_arch *arch, void *context) {
-	struct elf_fat_arch_match *m = (struct elf_fat_arch_match *) context;
+elf_score_best_compatible_fat_arch(struct elf_image_arch *arch,
+	void *context)
+{
+	elf_image_arch *image_arch = (elf_image_arch *) context;
+	if (arch_elf_arch_compat(arch, image_arch) == false)
+		return false;
 
-#define ARCH_MATCH(_flag, _value) do { \
-	if (m->flags & _flag && arch->_value != m->arch._value) { \
-		return 0; \
-	} \
-} while (0);
-
-	ARCH_MATCH(ELF_MATCH_MACHINE, machine);
-	ARCH_MATCH(ELF_MATCH_OSABI, osabi);
-	ARCH_MATCH(ELF_MATCH_OSABIVER, osabi_version);
-	ARCH_MATCH(ELF_MATCH_WORDSIZE, word_size);
-	ARCH_MATCH(ELF_MATCH_BYTEORDER, byte_order);
-#undef ARCH_MATCH
-
-	return 1;
+	return arch_elf_score_image_arch(arch);
 }
 
 
-// Find a FatELF architecture section that meets the provided match
-// requirements
-status_t elf_find_matching_fat_arch(int fd, struct elf_fat_arch_match *match,
+// Find the highest scoring FatELF architecture that is backwards ABI-compatible
+// with the imageArch
+status_t elf_find_best_compatible_fat_arch(int fd, elf_image_arch *image_arch,
 	struct elf_fat_arch_section *found_section)
 {
-	return elf_find_fat_arch(fd, elf_score_matching_fat_arch, match,
+	return elf_find_fat_arch(fd, elf_score_best_compatible_fat_arch, image_arch,
 		found_section);
 }
 
 
 status_t
 elf_load_user_image(const char *path, Team *team, int flags, addr_t *entry,
-	struct elf_fat_arch_match *arch_required)
+	struct elf_image_arch *min_arch_required)
 {
 	elf_ehdr elfHeader;
 	elf_phdr *programHeaders = NULL;
@@ -2028,9 +2019,9 @@ elf_load_user_image(const char *path, Team *team, int flags, addr_t *entry,
 		return status;
 
 	off_t fileOffset = 0;
-	if (arch_required != NULL) {
+	if (min_arch_required != NULL) {
 		struct elf_fat_arch_section fat_arch_section;
-		status = elf_find_matching_fat_arch(fd, arch_required,
+		status = elf_find_best_compatible_fat_arch(fd, min_arch_required,
 			&fat_arch_section);
 
 		if (status != B_OK) {

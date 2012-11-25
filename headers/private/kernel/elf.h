@@ -25,13 +25,6 @@ struct elf_image_arch {
 	uint8_t byte_order;		/* maps to e_ident[EI_DATA]. */
 };
 
-struct elf_fat_arch_match {
-	struct elf_image_arch arch;
-
-	// ELF_MATCH_* flags
-	uint32_t flags;
-};
-
 struct elf_fat_arch_section {
 	struct elf_image_arch arch;
 	off_t offset;
@@ -43,14 +36,6 @@ struct elf_symbol_info {
 	size_t	size;
 };
 
-/* FATELF matching flags */
-#define ELF_MATCH_MACHINE	(1 << 0)
-#define ELF_MATCH_OSABI		(1 << 1)
-#define ELF_MATCH_OSABIVER	(1 << 2)
-#define ELF_MATCH_WORDSIZE	(1 << 3)
-#define ELF_MATCH_BYTEORDER	(1 << 4)
-#define ELF_MATCH_ALL		0xFFFF
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -61,11 +46,11 @@ status_t elf_find_best_fat_arch(int fd,
 status_t elf_find_host_compatible_fat_arch(int fd,
 	struct elf_fat_arch_section* found_section);
 
-status_t elf_find_matching_fat_arch(int fd, struct elf_fat_arch_match *match,
+status_t elf_find_best_compatible_fat_arch(int fd, elf_image_arch *image_arch,
 	struct elf_fat_arch_section *found_section);
 
 status_t elf_load_user_image(const char *path, Team *team, int flags,
-	addr_t *entry, struct elf_fat_arch_match *arch_required);
+	addr_t *entry, struct elf_image_arch *min_arch_required);
 
 // these two might get public one day:
 image_id load_kernel_add_on(const char *path);
