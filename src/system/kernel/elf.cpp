@@ -73,7 +73,7 @@ static elf_sym *elf_find_symbol(struct elf_image_info *image, const char *name,
 
 
 // Compatible with the arch_elf_score_abi_ident() invariants
-typedef uint32_t (*elf_fat_score_arch)(struct elf_fat_arch *arch, 
+typedef uint32_t (*elf_fat_score_arch)(struct elf_image_arch *arch, 
 	void *context);
 
 
@@ -1910,7 +1910,7 @@ elf_find_fat_arch(int fd, elf_fat_score_arch score_arch,
 			return B_NOT_AN_EXECUTABLE;
 		}
 
-		struct elf_fat_arch fat_arch;
+		struct elf_image_arch fat_arch;
 		fat_arch.machine = B_LENDIAN_TO_HOST_INT16(fatRecord.machine);
 		fat_arch.osabi = fatRecord.osabi;
 		fat_arch.osabi_version = fatRecord.osabi_version;
@@ -1938,9 +1938,8 @@ elf_find_fat_arch(int fd, elf_fat_score_arch score_arch,
 
 
 static uint32_t
-elf_score_best_fat_arch(struct elf_fat_arch *arch, void *context) {
-	return arch_elf_score_abi_ident(arch->machine, arch->osabi,
-		arch->osabi_version, arch->word_size, arch->byte_order);
+elf_score_best_fat_arch(struct elf_image_arch *arch, void *context) {
+	return arch_elf_score_abi_ident(arch);
 }
 
 
@@ -1952,7 +1951,7 @@ elf_find_best_fat_arch(int fd, struct elf_fat_arch_section *found_section)
 
 
 static uint32_t
-elf_score_compatible_fat_arch(struct elf_fat_arch *arch, void *context) {
+elf_score_compatible_fat_arch(struct elf_image_arch *arch, void *context) {
 	// verify that the machine is compatible with the host process before
 	// handling the request off to the arch-specific function to score
 	// architecture types: we still want optimized binaries to be preferred
@@ -1961,8 +1960,7 @@ elf_score_compatible_fat_arch(struct elf_fat_arch *arch, void *context) {
 	if (!ELF_MACHINE_OK(arch->machine))
 		return 0;
 
-	return arch_elf_score_abi_ident(arch->machine, arch->osabi,
-		arch->osabi_version, arch->word_size, arch->byte_order);
+	return arch_elf_score_abi_ident(arch);
 }
 
 
@@ -1976,7 +1974,7 @@ status_t elf_find_host_compatible_fat_arch(int fd,
 
 
 static uint32_t
-elf_score_matching_fat_arch(struct elf_fat_arch *arch, void *context) {
+elf_score_matching_fat_arch(struct elf_image_arch *arch, void *context) {
 	struct elf_fat_arch_match *m = (struct elf_fat_arch_match *) context;
 
 #define FAT_ARCH_MATCH(_flag, _value) do { \

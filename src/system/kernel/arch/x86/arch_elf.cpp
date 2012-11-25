@@ -13,6 +13,7 @@
 
 #include <KernelExport.h>
 
+#include <elf.h>
 #include <elf_priv.h>
 #include <arch/cpu.h>
 #include <arch/elf.h>
@@ -28,11 +29,9 @@
 
 
 #ifdef _BOOT_MODE
-uint32_t boot_arch_elf_score_abi_ident(uint16_t machine, uint8_t osabi, 
-	uint8_t osabi_version, uint8_t word_size, uint8_t byte_order)
+uint32_t boot_arch_elf_score_abi_ident(struct elf_image_arch *arch)
 #else
-uint32_t arch_elf_score_abi_ident(uint16_t machine, uint8_t osabi, 
-	uint8_t osabi_version, uint8_t word_size, uint8_t byte_order)
+uint32_t arch_elf_score_abi_ident(struct elf_image_arch *arch)
 #endif
 {
 	bool longMode = false;
@@ -48,19 +47,19 @@ uint32_t arch_elf_score_abi_ident(uint16_t machine, uint8_t osabi,
 	longMode = true;
 #endif
 
-	if (osabi != ELFOSABI_HAIKU)
+	if (arch->osabi != ELFOSABI_HAIKU)
 		return 0;
 
-	if (osabi_version != 0)
+	if (arch->osabi_version != 0)
 		return 0;
 
-	if (!longMode && word_size != ELF_CLASS)
+	if (!longMode && arch->word_size != ELF_CLASS)
 		return 0;
 
-	if (byte_order != ELF_DATA)
+	if (arch->byte_order != ELF_DATA)
 		return 0;
 
-	switch (machine) {
+	switch (arch->machine) {
 		case EM_386:
 			return 1;
 		case EM_486:

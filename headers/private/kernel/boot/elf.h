@@ -86,8 +86,7 @@ typedef preloaded_elf32_image preloaded_elf_image;
 
 
 #ifdef _BOOT_MODE
-uint32_t boot_arch_elf_score_abi_ident(uint16_t machine, uint8_t osabi, 
-	uint8_t osabi_version, uint8_t word_size, uint8_t byte_order);
+uint32_t boot_arch_elf_score_abi_ident(struct elf_image_arch *arch);
 extern status_t boot_elf_resolve_symbol(preloaded_elf32_image* image,
 	struct Elf32_Sym* symbol, Elf32_Addr* symbolAddress);
 extern status_t boot_elf_resolve_symbol(preloaded_elf64_image* image,
