@@ -28,6 +28,7 @@ struct elf_symbol_info {
 	size_t	size;
 };
 
+
 #ifdef __cplusplus
 extern "C" {
 #endif
