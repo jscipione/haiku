@@ -20,6 +20,57 @@
 
 #define CHATTY 0
 
+
+#ifdef _BOOT_MODE
+bool boot_arch_elf_arch_compat(struct elf_image_arch* hostArch,
+	struct elf_image_arch* imageArch)
+#else
+bool arch_elf_arch_compat(struct elf_image_arch* hostArch,
+	struct elf_image_arch* imageArch)
+#endif
+{
+	if (hostArch->osabi != imageArch->osabi)
+		return false;
+
+	if (hostArch->osabi_version != imageArch->osabi_version)
+		return false;
+
+	if (hostArch->word_size != imageArch->word_size)
+		return false;
+
+	if (hostArch->byte_order != imageArch->byte_order)
+		return false;
+
+	if (hostArch->machine == imageArch->machine)
+		return false;
+
+	return true;
+}
+
+
+#ifdef _BOOT_MODE
+uint32_t boot_arch_elf_score_image_arch(struct elf_image_arch *arch)
+#else
+uint32_t arch_elf_score_image_arch(struct elf_image_arch *arch)
+#endif
+{
+	if (arch->osabi != ELFOSABI_HAIKU)
+		return 0;
+
+	if (arch->osabi_version != 0)
+		return 0;
+
+	if (arch->word_size != ELF_CLASS)
+		return 0;
+
+	if (arch->byte_order != ELF_DATA)
+		return 0;
+
+	if (!ELF_MACHINE_OK(arch->machine))
+		return 0;
+}
+
+
 #ifdef _BOOT_MODE
 status_t
 boot_arch_elf_relocate_rel(struct preloaded_elf32_image *image,
