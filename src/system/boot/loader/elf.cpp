@@ -662,8 +662,8 @@ static status_t elf_find_best_arch(int fd, elf_image_arch *kernel_arch,
 	}
 
 	if (B_LENDIAN_TO_HOST_INT32(magic) != FATELF_MAGIC) {
-		// Not FatELF, try plain ELF.
-		elf_ehdr elfHeader;
+		// 64-bit safe: The e_machine and e_ident field layout is identical
+		Elf32_Ehdr elfHeader;
 
 		length = read_pos(fd, 0, &elfHeader, sizeof(elfHeader));
 		if (length < B_OK) {
@@ -677,9 +677,7 @@ static status_t elf_find_best_arch(int fd, elf_image_arch *kernel_arch,
 			return B_NOT_AN_EXECUTABLE;
 		}
 
-
 		// File is not FAT, simply return the thin ELF.
-		// FATELF_TODO: This is not 64-bit clean.
 		arch->osabi = elfHeader.e_ident[EI_OSABI];
 		arch->osabi_version = elfHeader.e_ident[EI_ABIVERSION];
 		arch->word_size = elfHeader.e_ident[EI_CLASS];
