@@ -1938,7 +1938,8 @@ elf_find_fat_arch(int fd, elf_fat_score_arch score_arch,
 
 
 static uint32_t
-elf_score_best_fat_arch(struct elf_image_arch *arch, void *context) {
+elf_score_best_fat_arch(struct elf_image_arch *arch, void *context)
+{
 	return arch_elf_score_image_arch(arch);
 }
 
@@ -1951,7 +1952,8 @@ elf_find_best_fat_arch(int fd, struct elf_fat_arch_section *found_section)
 
 
 static uint32_t
-elf_score_compatible_fat_arch(struct elf_image_arch *arch, void *context) {
+elf_score_host_compatible_fat_arch(struct elf_image_arch *arch, void *context)
+{
 	// verify that the machine is compatible with the host process before
 	// handling the request off to the arch-specific function to score
 	// architecture types: we still want optimized binaries to be preferred
@@ -1968,7 +1970,7 @@ elf_score_compatible_fat_arch(struct elf_image_arch *arch, void *context) {
 status_t elf_find_host_compatible_fat_arch(int fd,
 	struct elf_fat_arch_section* found_section)
 {
-		return elf_find_fat_arch(fd, elf_score_compatible_fat_arch, NULL,
+		return elf_find_fat_arch(fd, elf_score_host_compatible_fat_arch, NULL,
 			found_section);
 }
 
