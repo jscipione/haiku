@@ -102,8 +102,8 @@ platform_exit(void)
 }
 
 
-void
-pi_start(void)
+extern "C" void
+_start(void)
 {
 	stage2_args args;
 
@@ -128,4 +128,3 @@ pi_start(void)
 
 	main(&args);
 }
-
