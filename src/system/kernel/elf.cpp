@@ -1839,8 +1839,8 @@ elf_find_fat_arch(int fd, elf_fat_score_arch score_arch,
 
 	if (B_LENDIAN_TO_HOST_INT32(magic) != FATELF_MAGIC) {
 		// Not FatELF, try plain ELF.
-		// 64-bit safe: The e_machine and e_ident field layout is identical
-		Elf32_Ehdr elfHeader;
+		// 32/64-bit safe: The e_machine and e_ident field layout is identical
+		elf_ehdr elfHeader;
 
 		length = _kern_read(fd, 0, &elfHeader, sizeof(elfHeader));
 		if (length < B_OK) {
@@ -1853,10 +1853,6 @@ elf_find_fat_arch(int fd, elf_fat_score_arch score_arch,
 			dprintf("short read on ELF header\n");
 			return B_NOT_AN_EXECUTABLE;
 		}
-
-		status = verify_eheader(&elfHeader);
-		if (status < B_OK)
-			return status;
 
 		// File is not FAT, simply return the thin ELF.
 		found_section->arch.osabi = elfHeader.e_ident[EI_OSABI];
