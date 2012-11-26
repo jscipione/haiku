@@ -29,7 +29,7 @@ typedef struct elf64_region {
 struct preloaded_image {
 	FixedWidthPointer<struct preloaded_image> next;
 	FixedWidthPointer<char> name;
-	uint8		elf_class;
+	elf_image_arch elf_arch;
 	addr_range	dynamic_section;
 
 	FixedWidthPointer<char> debug_string_table;

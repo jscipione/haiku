@@ -12,6 +12,7 @@
 #include <boot/stage2.h>
 #include <driver_settings.h>
 #include <elf32.h>
+#include <fatelf.h>
 #include <kernel.h>
 
 #include <errno.h>
@@ -48,8 +49,10 @@ private:
 	typedef typename Class::RelaType	RelaType;
 
 public:
-	static	status_t	Create(int fd, preloaded_image** _image);
-	static	status_t	Load(int fd, preloaded_image* image);
+	static	status_t	Create(int fd, uint64_t offset,
+							preloaded_image** _image);
+	static	status_t	Load(int fd,  uint64_t offset,
+							preloaded_image* image);
 	static	status_t	Relocate(preloaded_image* image);
 	static	status_t	Resolve(ImageType* image, SymType* symbol,
 							AddrType* symbolAddress);
@@ -146,7 +149,7 @@ typedef ELFLoader<ELF64Class> ELF64Loader;
 
 template<typename Class>
 /*static*/ status_t
-ELFLoader<Class>::Create(int fd, preloaded_image** _image)
+ELFLoader<Class>::Create(int fd, uint64_t fileOffset, preloaded_image** _image)
 {
 	ImageType* image = (ImageType*)kernel_args_malloc(sizeof(ImageType));
 	if (image == NULL)
@@ -154,7 +157,7 @@ ELFLoader<Class>::Create(int fd, preloaded_image** _image)
 
 	EhdrType& elfHeader = image->elf_header;
 
-	ssize_t length = read_pos(fd, 0, &elfHeader, sizeof(EhdrType));
+	ssize_t length = read_pos(fd, fileOffset, &elfHeader, sizeof(EhdrType));
 	if (length < (ssize_t)sizeof(EhdrType)) {
 		kernel_args_free(image);
 		return B_BAD_TYPE;
@@ -169,7 +172,15 @@ ELFLoader<Class>::Create(int fd, preloaded_image** _image)
 		return B_BAD_TYPE;
 	}
 
-	image->elf_class = elfHeader.e_ident[EI_CLASS];
+	image->elf_arch.osabi = elfHeader.e_ident[EI_OSABI];
+	image->elf_arch.osabi_version = elfHeader.e_ident[EI_ABIVERSION];
+	image->elf_arch.word_size = elfHeader.e_ident[EI_CLASS];
+	image->elf_arch.byte_order = elfHeader.e_ident[EI_DATA];
+	if (elfHeader.e_ident[EI_DATA] == ELFDATA2LSB) {
+		image->elf_arch.machine = B_LENDIAN_TO_HOST_INT32(elfHeader.e_machine);
+	} else {
+		image->elf_arch.machine = B_BENDIAN_TO_HOST_INT32(elfHeader.e_machine);
+	}
 
 	*_image = image;
 	return B_OK;
@@ -178,7 +189,7 @@ ELFLoader<Class>::Create(int fd, preloaded_image** _image)
 
 template<typename Class>
 /*static*/ status_t
-ELFLoader<Class>::Load(int fd, preloaded_image* _image)
+ELFLoader<Class>::Load(int fd, uint64_t fileOffset, preloaded_image* _image)
 {
 	size_t totalSize;
 	ssize_t length;
@@ -196,7 +207,7 @@ ELFLoader<Class>::Load(int fd, preloaded_image* _image)
 		goto error1;
 	}
 
-	length = read_pos(fd, elfHeader.e_phoff, programHeaders, size);
+	length = read_pos(fd, fileOffset + elfHeader.e_phoff, programHeaders, size);
 	if (length < size) {
 		TRACE(("error reading in program headers\n"));
 		status = B_ERROR;
@@ -321,7 +332,7 @@ ELFLoader<Class>::Load(int fd, preloaded_image* _image)
 		TRACE(("load segment %ld (%llu bytes) mapped at %p...\n", i,
 			(uint64)header.p_filesz, Class::Map(region->start)));
 
-		length = read_pos(fd, header.p_offset,
+		length = read_pos(fd, fileOffset + header.p_offset,
 			Class::Map(region->start + (header.p_vaddr % B_PAGE_SIZE)),
 			header.p_filesz);
 		if (length < (ssize_t)header.p_filesz) {
@@ -629,6 +640,130 @@ elf_init()
 #endif
 }
 
+static status_t elf_find_best_arch(int fd, elf_image_arch *kernel_arch,
+	elf_image_arch *arch, uint64_t *offset)
+{
+	FATELF_header fatHeader;
+	uint32_t bestScore = 0;
+	uint32_t magic;
+	ssize_t length;
+
+	// read and determine the file type
+	length = read_pos(fd, 0, &magic, sizeof(magic));
+	if (length < B_OK) {
+		dprintf("read error on FATELF record\n");
+		return B_NOT_AN_EXECUTABLE;
+	}
+
+	if (length != sizeof(magic)) {
+		// short read
+		dprintf("short read on FATELF magic\n");
+		return B_NOT_AN_EXECUTABLE;
+	}
+
+	if (B_LENDIAN_TO_HOST_INT32(magic) != FATELF_MAGIC) {
+		// Not FatELF, try plain ELF.
+		elf_ehdr elfHeader;
+
+		length = read_pos(fd, 0, &elfHeader, sizeof(elfHeader));
+		if (length < B_OK) {
+			dprintf("read error on ELF header\n");
+			return B_NOT_AN_EXECUTABLE;
+		}
+
+		if (length != sizeof(elfHeader)) {
+			// short read
+			dprintf("short read on ELF header\n");
+			return B_NOT_AN_EXECUTABLE;
+		}
+
+
+		// File is not FAT, simply return the thin ELF.
+		// FATELF_TODO: This is not 64-bit clean.
+		arch->osabi = elfHeader.e_ident[EI_OSABI];
+		arch->osabi_version = elfHeader.e_ident[EI_ABIVERSION];
+		arch->word_size = elfHeader.e_ident[EI_CLASS];
+		arch->byte_order = elfHeader.e_ident[EI_DATA];
+		if (elfHeader.e_ident[EI_DATA] == ELFDATA2LSB) {
+			arch->machine = B_LENDIAN_TO_HOST_INT32(elfHeader.e_machine);
+		} else {
+			arch->machine = B_BENDIAN_TO_HOST_INT32(elfHeader.e_machine);
+		}
+
+		if (kernel_arch != NULL) {
+			if (!boot_arch_elf_arch_compat(kernel_arch, arch)) {
+				dprintf("incompatible kernel architecture for module\n");
+				return B_MISMATCHING_ARCHITECTURE;
+			}
+		}
+
+		if (boot_arch_elf_score_image_arch(arch) == 0) {
+			dprintf("unsupported kernel architecture\n");
+			return B_MISMATCHING_ARCHITECTURE;
+		}
+
+		return B_OK;
+	}
+
+	// iterate the fat records
+	length = read_pos(fd, 0, &fatHeader, sizeof(fatHeader));
+	if (length < B_OK) {
+		dprintf("read error on FATELF header\n");
+		return B_NOT_AN_EXECUTABLE;
+	}
+
+	if (length != sizeof(fatHeader)) {
+		// short read
+		dprintf("short read on FATELF header\n");
+		return B_NOT_AN_EXECUTABLE;
+	}
+
+	// Score the fat records
+	for (uint8_t i = 0; i < fatHeader.num_records; i++) {
+		FATELF_record fatRecord;
+		length = read_pos(fd, FATELF_DISK_FORMAT_SIZE(i), &fatRecord,
+			sizeof(fatRecord));
+		if (length < B_OK) {
+			dprintf("read error on FATELF record\n");
+			return B_NOT_AN_EXECUTABLE;
+		}
+
+		if (length != sizeof(fatRecord)) {
+			// short read
+			dprintf("short read on FATELF record\n");
+			return B_NOT_AN_EXECUTABLE;
+		}
+
+		struct elf_image_arch fat_arch;
+		fat_arch.machine = B_LENDIAN_TO_HOST_INT16(fatRecord.machine);
+		fat_arch.osabi = fatRecord.osabi;
+		fat_arch.osabi_version = fatRecord.osabi_version;
+		fat_arch.word_size = fatRecord.word_size;
+		fat_arch.byte_order = fatRecord.byte_order;
+
+		if (kernel_arch != NULL) {
+			if (!boot_arch_elf_arch_compat(kernel_arch, &fat_arch))
+				continue;
+		}
+
+		uint32_t score = boot_arch_elf_score_image_arch(&fat_arch);
+		if (score <= bestScore)
+			continue;
+
+		bestScore = score;
+
+		*arch = fat_arch;
+		*offset = B_LENDIAN_TO_HOST_INT64(fatRecord.offset);
+	}
+
+	if (bestScore > 0) {
+		return B_OK;
+	} else {
+		dprintf("no binaries found with a score > 0 in FATELF\n");
+		return B_MISMATCHING_ARCHITECTURE;
+	}
+}
+
 
 status_t
 elf_load_image(int fd, preloaded_image** _image)
@@ -637,22 +772,30 @@ elf_load_image(int fd, preloaded_image** _image)
 
 	TRACE(("elf_load_image(fd = %d, _image = %p)\n", fd, _image));
 
-#if BOOT_SUPPORT_ELF64
-	if (gKernelArgs.kernel_image == NULL
-		|| gKernelArgs.kernel_image->elf_class == ELFCLASS64) {
-		status = ELF64Loader::Create(fd, _image);
+	// fetch the kernel arch data
+	elf_image_arch *kernel_arch = NULL;
+	if (gKernelArgs.kernel_image != NULL)
+		kernel_arch = &gKernelArgs.kernel_image->elf_arch;
+
+	// load the best supported architecture
+	elf_image_arch bestArch;
+	uint64_t fileOffset = 0;
+	status = elf_find_best_arch(fd, kernel_arch, &bestArch, &fileOffset);
+	if (status != B_OK)
+		return status;
+
+	if (bestArch.word_size == FATELF_64BITS) {
+		status = ELF64Loader::Create(fd, fileOffset, _image);
 		if (status == B_OK)
-			return ELF64Loader::Load(fd, *_image);
+			return ELF64Loader::Load(fd, fileOffset, *_image);
 		else if (status != B_BAD_TYPE)
 			return status;
-	}
-#endif
-
-	if (gKernelArgs.kernel_image == NULL
-		|| gKernelArgs.kernel_image->elf_class == ELFCLASS32) {
-		status = ELF32Loader::Create(fd, _image);
+	} else {
+		status = ELF32Loader::Create(fd, fileOffset, _image);
 		if (status == B_OK)
-			return ELF32Loader::Load(fd, *_image);
+			return ELF32Loader::Load(fd, fileOffset, *_image);
+		else if (status != B_BAD_TYPE)
+			return status;
 	}
 
 	return status;
@@ -707,7 +850,7 @@ status_t
 elf_relocate_image(preloaded_image* image)
 {
 #ifdef BOOT_SUPPORT_ELF64
-	if (image->elf_class == ELFCLASS64)
+	if (image->elf_arch.word_size == ELFCLASS64)
 		return ELF64Loader::Relocate(image);
 	else
 #endif

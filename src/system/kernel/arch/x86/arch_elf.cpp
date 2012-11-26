@@ -36,8 +36,6 @@ bool arch_elf_arch_compat(struct elf_image_arch* hostArch,
 	struct elf_image_arch* imageArch)
 #endif
 {
-	uint16_t compatMachine;
-
 	if (hostArch->osabi != imageArch->osabi)
 		return false;
 
@@ -51,12 +49,12 @@ bool arch_elf_arch_compat(struct elf_image_arch* hostArch,
 		return false;
 
 	// Some architectures are forwards (but not backwards) ABI-compatible
-	compatMachine = imageArch->machine;
-	if (compatMachine == EM_386)
-		compatMachine = EM_486;
-
-	if (hostArch->machine != compatMachine)
+	if (imageArch->machine == EM_386) {
+		if (hostArch->machine != EM_386 && hostArch->machine != EM_486)
+			return false;
+	} else if (hostArch->machine != imageArch->machine) {
 		return false;
+	}
 
 	return true;
 }

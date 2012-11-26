@@ -126,7 +126,7 @@ extern "C" void
 platform_start_kernel(void)
 {
 	// 64-bit kernel entry is all handled in long.cpp
-	if (gKernelArgs.kernel_image->elf_class == ELFCLASS64) {
+	if (gKernelArgs.kernel_image->elf_arch.word_size == ELFCLASS64) {
 		long_start_kernel();
 		return;
 	}
