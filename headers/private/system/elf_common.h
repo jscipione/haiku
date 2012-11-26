@@ -327,4 +327,13 @@ typedef uint16 elf_versym;
 #	define ELF_DATA		ELFDATA2MSB
 #endif
 
+// Generic image architecture description
+struct elf_image_arch {
+	uint16_t machine;		/* maps to e_machine. */
+	uint8_t osabi;			/* maps to e_ident[EI_OSABI]. */
+	uint8_t osabi_version;	/* maps to e_ident[EI_ABIVERSION]. */
+	uint8_t word_size;		/* maps to e_ident[EI_CLASS]. */
+	uint8_t byte_order;		/* maps to e_ident[EI_DATA]. */
+};
+
 #endif	/* _ELF_COMMON_H_ */

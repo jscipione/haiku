@@ -17,14 +17,6 @@
 
 struct kernel_args;
 
-struct elf_image_arch {
-	uint16_t machine;		/* maps to e_machine. */
-	uint8_t osabi;			/* maps to e_ident[EI_OSABI]. */
-	uint8_t osabi_version;	/* maps to e_ident[EI_ABIVERSION]. */
-	uint8_t word_size;		/* maps to e_ident[EI_CLASS]. */
-	uint8_t byte_order;		/* maps to e_ident[EI_DATA]. */
-};
-
 struct elf_fat_arch_section {
 	struct elf_image_arch arch;
 	off_t offset;
