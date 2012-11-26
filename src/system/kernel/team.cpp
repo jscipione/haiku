@@ -1590,8 +1590,8 @@ team_create_thread_start_internal(void* args)
 	// determine the target binary architecture; on failure, we just allow
 	// any arch and let the runtime_loader report an appropriate error.
 	struct elf_image_arch *requiredArch;
+	struct elf_image_arch archResult;
 	{
-		struct elf_image_arch archResult;
 		err = team_create_thread_start_determine_arch(team, path, &archResult);
 		if (err == B_OK) {
 			requiredArch = &archResult;
