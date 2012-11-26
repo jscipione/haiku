@@ -1505,7 +1505,7 @@ team_create_thread_start_determine_arch(Team* team, const char* path,
 
 	// determine the preferred architecture
 	struct elf_fat_arch_section fat_arch_section;
-	err = elf_find_best_fat_arch(fd, &fat_arch_section);
+	err = elf_find_best_fat_section(fd, &fat_arch_section);
 	if (err != B_OK)
 		goto finished;
 

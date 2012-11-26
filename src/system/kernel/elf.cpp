@@ -1839,7 +1839,8 @@ elf_find_fat_arch(int fd, elf_fat_score_arch score_arch,
 
 	if (B_LENDIAN_TO_HOST_INT32(magic) != FATELF_MAGIC) {
 		// Not FatELF, try plain ELF.
-		elf_ehdr elfHeader;
+		// 64-bit safe: The e_machine and e_ident field layout is identical
+		Elf32_Ehdr elfHeader;
 
 		length = _kern_read(fd, 0, &elfHeader, sizeof(elfHeader));
 		if (length < B_OK) {
@@ -1945,14 +1946,14 @@ elf_score_best_fat_arch(struct elf_image_arch *arch, void *context)
 
 
 status_t
-elf_find_best_fat_arch(int fd, struct elf_fat_arch_section *found_section)
+elf_find_best_fat_section(int fd, struct elf_fat_arch_section *found_section)
 {
 	return elf_find_fat_arch(fd, elf_score_best_fat_arch, NULL, found_section);
 }
 
 
 static uint32_t
-elf_score_host_compatible_fat_arch(struct elf_image_arch *arch, void *context)
+elf_score_kernel_compatible_fat_arch(struct elf_image_arch *arch, void *context)
 {
 	// verify that the machine is compatible with the host process before
 	// handling the request off to the arch-specific function to score
@@ -1967,10 +1968,11 @@ elf_score_host_compatible_fat_arch(struct elf_image_arch *arch, void *context)
 
 
 // Find a FatELF architecture section that is compatible with the host process
-status_t elf_find_host_compatible_fat_arch(int fd,
+static status_t
+elf_find_kernel_compatible_fat_section(int fd,
 	struct elf_fat_arch_section* found_section)
 {
-		return elf_find_fat_arch(fd, elf_score_host_compatible_fat_arch, NULL,
+	return elf_find_fat_arch(fd, elf_score_kernel_compatible_fat_arch, NULL,
 			found_section);
 }
 
@@ -1989,8 +1991,8 @@ elf_score_best_compatible_fat_arch(struct elf_image_arch *arch,
 
 // Find the highest scoring FatELF architecture that is backwards ABI-compatible
 // with the imageArch
-status_t elf_find_best_compatible_fat_arch(int fd, elf_image_arch *image_arch,
-	struct elf_fat_arch_section *found_section)
+status_t elf_find_best_compatible_fat_section(int fd,
+	elf_image_arch *image_arch, struct elf_fat_arch_section *found_section)
 {
 	return elf_find_fat_arch(fd, elf_score_best_compatible_fat_arch, image_arch,
 		found_section);
@@ -2023,7 +2025,7 @@ elf_load_user_image(const char *path, Team *team, int flags, addr_t *entry,
 	off_t fileOffset = 0;
 	if (min_arch_required != NULL) {
 		struct elf_fat_arch_section fat_arch_section;
-		status = elf_find_best_compatible_fat_arch(fd, min_arch_required,
+		status = elf_find_best_compatible_fat_section(fd, min_arch_required,
 			&fat_arch_section);
 
 		if (status != B_OK) {
@@ -2268,7 +2270,7 @@ load_kernel_add_on(const char *path)
 	fileOffset = 0;
 	{
 		struct elf_fat_arch_section fat_arch_section;
-		status = elf_find_host_compatible_fat_arch(fd, &fat_arch_section);
+		status = elf_find_kernel_compatible_fat_section(fd, &fat_arch_section);
 		if (status != B_OK) {
 			dprintf("could not find FATELF image for requested image arch\n");
 			goto error;

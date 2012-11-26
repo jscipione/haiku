@@ -32,14 +32,11 @@ struct elf_symbol_info {
 extern "C" {
 #endif
 
-status_t elf_find_best_fat_arch(int fd,
+status_t elf_find_best_fat_section(int fd,
 		struct elf_fat_arch_section *found_section);
 
-status_t elf_find_host_compatible_fat_arch(int fd,
-	struct elf_fat_arch_section* found_section);
-
-status_t elf_find_best_compatible_fat_arch(int fd, elf_image_arch *image_arch,
-	struct elf_fat_arch_section *found_section);
+status_t elf_find_best_compatible_fat_section(int fd,
+	elf_image_arch *image_arch, struct elf_fat_arch_section *found_section);
 
 status_t elf_load_user_image(const char *path, Team *team, int flags,
 	addr_t *entry, struct elf_image_arch *min_arch_required);
