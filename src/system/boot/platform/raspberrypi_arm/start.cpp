@@ -35,7 +35,6 @@ extern uint8 __stack_start;
 extern uint8 __stack_end;
 
 extern int main(stage2_args *args);
-void _start(void);
 
 // Adjusted during mmu_init
 addr_t gPeripheralBase = DEVICE_BASE;
@@ -116,6 +115,9 @@ _start(void)
 
 	// Flick on "OK" led, use pre-mmu firmware base
 	gpio_write(gPeripheralBase + GPIO_BASE, 16, 0);
+
+	// Set up the framebuffer here to help debug the early boot.
+	platform_init_video();
 
 	// To debug mmu, enable serial_init above me!
 	mmu_init();
