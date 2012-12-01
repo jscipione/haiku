@@ -13,10 +13,14 @@
 #include "serial.h"
 
 #include <KernelExport.h>
+
+#include <arch/cpu.h>
+
 #include <boot/platform.h>
 #include <boot/heap.h>
 #include <boot/stage2.h>
-#include <arch/cpu.h>
+
+#include <platform_arch.h>
 
 #include <string.h>
 
@@ -86,7 +90,21 @@ platform_boot_options(void)
 void
 platform_start_kernel(void)
 {
-	#warning IMPLEMENT platform_start_kernel
+	preloaded_elf32_image *image = static_cast<preloaded_elf32_image *>(
+		gKernelArgs.kernel_image.Pointer());
+
+	addr_t kernelEntry = image->elf_header.e_entry;
+	addr_t stackTop
+		= gKernelArgs.cpu_kstack[0].start + gKernelArgs.cpu_kstack[0].size;
+
+	serial_cleanup();
+	mmu_init_for_kernel();
+
+	dprintf("kernel entry at %lx\n", kernelEntry);
+
+	status_t error = arch_start_kernel(&gKernelArgs, kernelEntry,
+		stackTop);
+
 	panic("kernel returned!\n");
 }
 
@@ -116,11 +134,13 @@ _start(void)
 	// Flick on "OK" led, use pre-mmu firmware base
 	gpio_write(gPeripheralBase + GPIO_BASE, 16, 0);
 
-	// Set up the framebuffer here to help debug the early boot.
-	platform_init_video();
-
 	// To debug mmu, enable serial_init above me!
 	mmu_init();
+
+	// Map in the boot archive loaded into memory by the firmware.
+	args.platform.boot_tgz_size = BOOT_ARCHIVE_SIZE;
+	args.platform.boot_tgz_data = (void*)mmu_map_physical_memory(
+		BOOT_ARCHIVE_BASE, args.platform.boot_tgz_size, kDefaultPageFlags);
 
 	serial_init();
 	console_init();
