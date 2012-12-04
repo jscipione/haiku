@@ -18,6 +18,7 @@
 
 #include <elf32.h>
 #include <elf64.h>
+#include <fatelf.h>
 
 #include <AutoDeleter.h>
 
@@ -48,8 +49,9 @@ enum {
 	FILE_TYPE_X86_RESOURCE	= 1,
 	FILE_TYPE_PPC_RESOURCE	= 2,
 	FILE_TYPE_ELF			= 3,
-	FILE_TYPE_PEF			= 4,
-	FILE_TYPE_EMPTY			= 5,
+	FILE_TYPE_FATELF		= 4,
+	FILE_TYPE_PEF			= 5,
+	FILE_TYPE_EMPTY			= 6,
 };
 
 
@@ -58,6 +60,7 @@ const char* kFileTypeNames[] = {
 	"x86 resource file",
 	"PPC resource file",
 	"ELF object file",
+	"FatELF object file",
 	"PEF object file",
 	"empty file",
 };
@@ -376,9 +379,9 @@ ResourceFile::_InitFile(BFile& file, bool clobber)
 	if (error != B_OK)
 		throw Exception(error, "Failed to get the file size.");
 	// read the first four bytes, and check, if they identify a resource file
-	char magic[4];
+	uint32 magic;
 	if (fileSize >= 4)
-		read_exactly(file, 0, magic, 4, "Failed to read magic number.");
+		read_exactly(file, 0, &magic, 4, "Failed to read magic number.");
 	else if (fileSize > 0 && !clobber)
 		throw Exception(B_IO_ERROR, "File is not a resource file.");
 	if (fileSize == 0) {
@@ -387,13 +390,13 @@ ResourceFile::_InitFile(BFile& file, bool clobber)
 		fFileType = FILE_TYPE_EMPTY;
 		fFile.SetTo(&file, 0);
 		fEmptyResources = true;
-	} else if (!memcmp(magic, kX86ResourceFileMagic, 4)) {
+	} else if (!memcmp(&magic, kX86ResourceFileMagic, 4)) {
 		// x86 resource file
 		fHostEndianess = B_HOST_IS_LENDIAN;
 		fFileType = FILE_TYPE_X86_RESOURCE;
 		fFile.SetTo(&file, kX86ResourcesOffset);
 		fEmptyResources = false;
-	} else if (!memcmp(magic, kPEFFileMagic1, 4)) {
+	} else if (!memcmp(&magic, kPEFFileMagic1, 4)) {
 		PEFContainerHeader pefHeader;
 		read_exactly(file, 0, &pefHeader, kPEFContainerHeaderSize,
 			"Failed to read PEF container header.");
@@ -409,11 +412,14 @@ ResourceFile::_InitFile(BFile& file, bool clobber)
 			_InitPEFFile(file, pefHeader);
 		} else
 			throw Exception(B_IO_ERROR, "File is not a resource file.");
-	} else if (!memcmp(magic, ELF_MAGIC, 4)) {
+	} else if (!memcmp(&magic, ELF_MAGIC, 4)) {
 		// ELF file
 		fFileType = FILE_TYPE_ELF;
 		_InitELFFile(file);
-	} else if (!memcmp(magic, kX86ResourceFileMagic, 2)) {
+	} else if (B_LENDIAN_TO_HOST_INT32(magic) == FATELF_MAGIC) {
+		fFileType = FILE_TYPE_FATELF;
+		_InitFatELFFile(file);
+	} else if (!memcmp(&magic, kX86ResourceFileMagic, 2)) {
 		// x86 resource file with screwed magic?
 //		Warnings::AddCurrentWarning("File magic is 0x%08lx. Should be 0x%08lx "
 //									"for x86 resource file. Try anyway.",
@@ -663,6 +669,52 @@ ResourceFile::_InitELFXFile(BFile& file, uint64 fileSize)
 		fEmptyResources = false;
 
 	// fine, init the offset file
+	fFile.SetTo(&file, resourceOffset);
+}
+
+
+void
+ResourceFile::_InitFatELFFile(BFile& file)
+{
+	// get the file size
+	off_t fileSize = 0;
+	status_t error = file.GetSize(&fileSize);
+	if (error != B_OK)
+		throw Exception(error, "Failed to get the file size.");
+
+	// read FatELF header
+	FATELF_header fileHeader;
+	read_exactly(file, 0, &fileHeader, sizeof(fileHeader),
+		"Failed to read FatELF header.");
+
+	// read FatELF records
+	FATELF_record* records = (FATELF_record*)malloc(
+		fileHeader.num_records * sizeof(FATELF_record));
+
+	if (records == NULL)
+		throw Exception(B_NO_MEMORY);
+	MemoryDeleter recordsDeleter(records);
+
+	read_exactly(file, sizeof(FATELF_header), records,
+		fileHeader.num_records * sizeof(FATELF_record),
+		"Failed to read FatELF records.");
+
+	// find furthest entry
+	uint64 resourceOffset = 0;
+	for (uint8 i = 0; i < fileHeader.num_records; i++) {
+		FATELF_record *record = records + i;
+		uint64 elfEnd = B_LENDIAN_TO_HOST_INT64(record->offset) +
+			B_LENDIAN_TO_HOST_INT64(record->size);
+		resourceOffset = std::max(resourceOffset, elfEnd);
+	}
+
+
+	resourceOffset = align_value(resourceOffset, kFatELFMinResourceAlignment);
+	if (resourceOffset >= (uint64) fileSize)
+		fEmptyResources = true;
+	else
+		fEmptyResources = false;
+
 	fFile.SetTo(&file, resourceOffset);
 }
 

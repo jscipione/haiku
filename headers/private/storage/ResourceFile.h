@@ -79,6 +79,7 @@ private:
 				typename ElfSectionHeader>
 			void				_InitELFXFile(BFile& file, uint64 fileSize);
 
+			void				_InitFatELFFile(BFile& file);
 			void				_InitPEFFile(BFile& file,
 									const PEFContainerHeader& pefHeader);
 			void				_ReadHeader(resource_parse_info& parseInfo);

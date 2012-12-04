@@ -16,6 +16,11 @@ const uint32	kPPCResourcesOffset				= 0x00000028;
 // ELF file related constants
 const uint32	kELFMinResourceAlignment		= 32;
 
+// FatELF file related constants
+// FATELF_REVIEW: Should this be page aligned? We're just borrowing the
+// alignment used by the existing ELF64 code
+const uint32	kFatELFMinResourceAlignment		= 8;
+
 // the unused data pattern
 const uint32	kUnusedResourceDataPattern[3]	= {
 	0xffffffff, 0x000003e9, 0x00000000
