@@ -36,7 +36,6 @@ namespace Storage {
 // ELF defs
 static const uint32	kMaxELFHeaderSize
 	= std::max(sizeof(Elf32_Ehdr), sizeof(Elf64_Ehdr)) + 32;
-static const char	kELFFileMagic[4]			= { 0x7f, 'E', 'L', 'F' };
 
 // sanity bounds
 static const uint32	kMaxResourceCount			= 10000;
@@ -410,7 +409,7 @@ ResourceFile::_InitFile(BFile& file, bool clobber)
 			_InitPEFFile(file, pefHeader);
 		} else
 			throw Exception(B_IO_ERROR, "File is not a resource file.");
-	} else if (!memcmp(magic, kELFFileMagic, 4)) {
+	} else if (!memcmp(magic, ELF_MAGIC, 4)) {
 		// ELF file
 		fFileType = FILE_TYPE_ELF;
 		_InitELFFile(file);
