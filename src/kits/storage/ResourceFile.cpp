@@ -16,9 +16,11 @@
 #include <new>
 #include <stdio.h>
 
+#include <elf32.h>
+#include <elf64.h>
+
 #include <AutoDeleter.h>
 
-#include <Elf.h>
 #include <Exception.h>
 #include <Pef.h>
 #include <ResourceItem.h>

@@ -1,6 +1,6 @@
 SubDir HAIKU_TOP src build libbe storage ;
 
-UsePrivateBuildHeaders app kernel shared storage ;
+UsePrivateBuildHeaders app kernel shared storage system ;
 
 SEARCH_SOURCE += [ FDirName $(SUBDIR) mime ] ;
 
