@@ -81,9 +81,15 @@
 #define EM_TINYJ		61 // Advanced Logic Corp. TinyJ embedded processor
 #define EM_X86_64		62 // Advanced Micro Devices X86-64 processor
 
+// elf version (EI_VERSION)
+#define EV_NONE			0
+#define EV_CURRENT		1
+
 // architecture class (EI_CLASS)
-#define ELFCLASS32	1
-#define ELFCLASS64	2
+#define ELFCLASSNONE	0
+#define ELFCLASS32		1
+#define ELFCLASS64		2
+
 // endian (EI_DATA)
 #define ELFDATA2LSB	1	/* little endian */
 #define ELFDATA2MSB	2	/* big endian */
