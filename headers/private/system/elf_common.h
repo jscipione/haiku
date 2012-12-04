@@ -91,6 +91,7 @@
 #define ELFCLASS64		2
 
 // endian (EI_DATA)
+#define ELFDATANONE	0	/* unknown data format */
 #define ELFDATA2LSB	1	/* little endian */
 #define ELFDATA2MSB	2	/* big endian */
 
