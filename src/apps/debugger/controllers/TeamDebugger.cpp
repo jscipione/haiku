@@ -277,14 +277,17 @@ TeamDebugger::~TeamDebugger()
 			thread = next;
 		}
 	}
+
+	if (fReportGenerator != NULL) {
+		fReportGenerator->Lock();
+		fReportGenerator->Quit();
+	}
+
 	delete fImageInfoPendingThreads;
 
 	delete fBreakpointManager;
 	delete fWatchpointManager;
 	delete fMemoryBlockManager;
-	fReportGenerator->Lock();
-	fReportGenerator->Quit();
-	delete fReportGenerator;
 	delete fWorker;
 	delete fTeam;
 	delete fFileManager;

@@ -94,6 +94,68 @@ BListValueNode::BListElementNodeChild::ResolveLocation(
 }
 
 
+//#pragma mark - BListItemCountNodeChild
+
+class BListValueNode::BListItemCountNodeChild : public ValueNodeChild {
+public:
+								BListItemCountNodeChild(BVariant location,
+									BListValueNode* parent, Type* type);
+	virtual						~BListItemCountNodeChild();
+
+	virtual	const BString&		Name() const { return fName; };
+	virtual	Type*				GetType() const { return fType; };
+	virtual	ValueNode*			Parent() const { return fParent; };
+
+	virtual status_t			ResolveLocation(ValueLoader* valueLoader,
+									ValueLocation*& _location);
+
+private:
+	Type*						fType;
+	BListValueNode*				fParent;
+	BVariant					fLocation;
+	BString						fName;
+};
+
+
+BListValueNode::BListItemCountNodeChild::BListItemCountNodeChild(
+	BVariant location, BListValueNode* parent, Type* type)
+	:
+	ValueNodeChild(),
+	fType(type),
+	fParent(parent),
+	fLocation(location),
+	fName("Capacity")
+{
+	fType->AcquireReference();
+	fParent->AcquireReference();
+}
+
+
+BListValueNode::BListItemCountNodeChild::~BListItemCountNodeChild()
+{
+	fType->ReleaseReference();
+	fParent->ReleaseReference();
+}
+
+
+status_t
+BListValueNode::BListItemCountNodeChild::ResolveLocation(
+	ValueLoader* valueLoader, ValueLocation*& _location)
+{
+	ValueLocation* location = new(std::nothrow) ValueLocation();
+	if (location == NULL)
+		return B_NO_MEMORY;
+
+	ValuePieceLocation piece;
+	piece.SetToMemory(fLocation.ToUInt64());
+	piece.SetSize(sizeof(int32));
+	location->AddPiece(piece);
+
+	_location = location;
+	return B_OK;
+}
+
+
 //#pragma mark - BListValueNode
 
 BListValueNode::BListValueNode(ValueNodeChild* nodeChild,
@@ -101,7 +163,9 @@ BListValueNode::BListValueNode(ValueNodeChild* nodeChild,
 	:
 	ValueNode(nodeChild),
 	fType(type),
-	fLoader(NULL)
+	fLoader(NULL),
+	fItemCountType(NULL),
+	fItemCount(0)
 {
 	fType->AcquireReference();
 }
@@ -112,6 +176,9 @@ BListValueNode::~BListValueNode()
 	fType->ReleaseReference();
 	for (int32 i = 0; i < fChildren.CountItems(); i++)
 		fChildren.ItemAt(i)->ReleaseReference();
+
+	if (fItemCountType != NULL)
+		fItemCountType->ReleaseReference();
 
 	delete fLoader;
 }
@@ -153,41 +220,65 @@ BListValueNode::ResolvedLocationAndValue(ValueLoader* valueLoader,
 	ValueLocation* memberLocation = NULL;
 	CompoundType* baseType = dynamic_cast<CompoundType*>(fType);
 
+	if (baseType->CountTemplateParameters() != 0) {
+		// for BObjectList we need to walk up
+		// the hierarchy: BObjectList -> _PointerList_ -> BList
+		if (baseType->CountBaseTypes() == 0)
+			return B_BAD_DATA;
+
+		baseType = dynamic_cast<CompoundType*>(baseType->BaseTypeAt(0)
+			->GetType());
+		if (baseType == NULL || baseType->Name() != "_PointerList_")
+			return B_BAD_DATA;
+
+		if (baseType->CountBaseTypes() == 0)
+			return B_BAD_DATA;
+
+		baseType = dynamic_cast<CompoundType*>(baseType->BaseTypeAt(0)
+			->GetType());
+		if (baseType == NULL || baseType->Name() != "BList")
+			return B_BAD_DATA;
+
+	}
+
 	for (int32 i = 0; i < baseType->CountDataMembers(); i++) {
 		DataMember* member = baseType->DataMemberAt(i);
 		if (strcmp(member->Name(), "fObjectList") == 0) {
 			error = baseType->ResolveDataMemberLocation(member,
 				*location, memberLocation);
+			BReference<ValueLocation> locationRef(memberLocation, true);
 			if (error != B_OK) {
 				TRACE_LOCALS(
 					"BListValueNode::ResolvedLocationAndValue(): "
 					"failed to resolve location of header member: %s\n",
 					strerror(error));
-				delete memberLocation;
 				return error;
 			}
 
 			error = valueLoader->LoadValue(memberLocation, valueType,
 				false, fDataLocation);
-			delete memberLocation;
 			if (error != B_OK)
 				return error;
 		} else if (strcmp(member->Name(), "fItemCount") == 0) {
 			error = baseType->ResolveDataMemberLocation(member,
 				*location, memberLocation);
+			BReference<ValueLocation> locationRef(memberLocation, true);
 			if (error != B_OK) {
 				TRACE_LOCALS(
 					"BListValueNode::ResolvedLocationAndValue(): "
 					"failed to resolve location of header member: %s\n",
 					strerror(error));
-				delete memberLocation;
 				return error;
 			}
+
+			fItemCountType = member->GetType();
+			fItemCountType->AcquireReference();
+
+			fItemCountLocation = memberLocation->PieceAt(0).address;
 
 			BVariant listSize;
 			error = valueLoader->LoadValue(memberLocation, valueType,
 				false, listSize);
-			delete memberLocation;
 			if (error != B_OK)
 				return error;
 
@@ -213,14 +304,41 @@ BListValueNode::ResolvedLocationAndValue(ValueLoader* valueLoader,
 status_t
 BListValueNode::CreateChildren()
 {
-	BString typeName;
-	TypeLookupConstraints constraints;
-	constraints.SetTypeKind(TYPE_ADDRESS);
-	constraints.SetBaseTypeName("void");
+	if (fChildrenCreated)
+		return B_OK;
+
+	if (fItemCountType != NULL) {
+		BListItemCountNodeChild* countChild = new(std::nothrow)
+			BListItemCountNodeChild(fItemCountLocation, this, fItemCountType);
+
+		if (countChild == NULL)
+			return B_NO_MEMORY;
+
+		countChild->SetContainer(fContainer);
+		fChildren.AddItem(countChild);
+	}
+
+	BReference<Type> addressTypeRef;
 	Type* type = NULL;
-	status_t result = fLoader->LookupTypeByName(typeName, constraints, type);
-	if (result != B_OK)
-		return result;
+	CompoundType* objectType = dynamic_cast<CompoundType*>(fType);
+	if (objectType->CountTemplateParameters() != 0) {
+		AddressType* addressType = NULL;
+		status_t result = objectType->TemplateParameterAt(0)->GetType()
+			->CreateDerivedAddressType(DERIVED_TYPE_POINTER, addressType);
+		if (result != B_OK)
+			return result;
+
+		type = addressType;
+		addressTypeRef.SetTo(type, true);
+	} else {
+		BString typeName;
+		TypeLookupConstraints constraints;
+		constraints.SetTypeKind(TYPE_ADDRESS);
+		constraints.SetBaseTypeName("void");
+		status_t result = fLoader->LookupTypeByName(typeName, constraints, type);
+		if (result != B_OK)
+			return result;
+	}
 
 	for (int32 i = 0; i < fItemCount && i < kMaxArrayElementCount; i++)
 	{

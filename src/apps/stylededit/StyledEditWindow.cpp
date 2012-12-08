@@ -1599,7 +1599,7 @@ StyledEditWindow::_SetFontStyle(const char* fontFamily, const char* fontStyle)
 
 	font.SetFace(face);
 
-	fTextView->SetFontAndColor(&font);
+	fTextView->SetFontAndColor(&font, B_FONT_FAMILY_AND_STYLE);
 
 	BMenuItem* superItem;
 	superItem = fFontMenu->FindItem(fontFamily);
