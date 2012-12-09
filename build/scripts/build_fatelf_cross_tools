@@ -1,0 +1,184 @@
+#!/bin/sh
+
+CWD=`pwd`
+
+# Print an info-level message
+info() {
+	echo "$1"
+}
+
+fprintf() {
+	local fd="$1"
+	local msg="$2"
+	echo "${msg}" 1>&${fd}
+}
+
+# Print an error-level message to stderr
+error() {
+	fprintf 2 "$1"
+}
+
+# Print a fatal message to stderr and exit
+fatal() {
+	error "$1"
+	exit 1
+}
+
+# Check for a non-zero error code
+# If non-zero, print the fatal error message
+check_error() {
+	if [ $? != 0 ]; then
+		fatal "$1"
+	fi
+}
+
+# Resolve a relative path
+abspath() {
+	local path="$1"
+	local var="$2"
+	case "${path}" in
+		/*)
+			# Nothing to do, absolute path
+			;;
+		*)
+			eval "${var}=\"${CWD}/${path}\""
+			;;
+	esac
+}
+
+main() {
+	echo "D ${DESTROOT}"
+}
+
+usage() {
+	# Output to stderr if this occured due to an error, otherwise, stdout
+	# This allows users to page the output of --help, in which case there
+	# isn't an error, and usage is the expected output
+	local err="$1"
+	if [ -z "${err}" ]; then
+		local fd="1"
+	else
+		local fd="2"
+	fi
+
+	fprintf $fd "Usage: $0 <options> <command>"
+	fprintf $fd "Required Options: "
+	fprintf $fd "  --targets	The target architectures for which cross tools will be built (x86, x86_64, arm, ppc, m68k, mipsel)"
+	fprintf $fd "  --prefix		The binary installation prefix (eg, /usr/local)."
+	fprintf $fd "  --destroot	The installation destroot. This is where the files will actually be installed."
+	fprintf $fd "  --buildtools	The path to the Haiku buildtools checkout."
+	fprintf $fd "  --haiku		The path to the Haiku source checkout."
+
+	fprintf $fd ""
+	fprintf $fd "Options:"
+	fprintf $fd "  --hosts		The host architectures for which the cross tools will be built. Accepts the same architecture values as --targets"
+
+	fprintf $fd ""
+	fprintf $fd "Commands: "
+	fprintf $fd "  clean		Clean any intermediate build output."
+	fprintf $fd "  distclean	Clean any intermediate build output, as well as the target destroot (Caution!)."
+	fprintf $fd "  build		Build and install the cross tools."
+}
+
+fatal_usage() {
+	local msg="$1"
+	error "${msg}\n"
+	usage 1
+	exit 1
+}
+
+parse_cmd_arg() {
+	local cmd="$1"
+
+	# Check if command has already been specified
+	if [ ! -z "${COMMAND}" ]; then
+		fatal_usage "Multiple commands were specified"
+	fi
+	
+	case "${cmd}" in
+		build)
+			COMMAND="${cmd}"
+			;;
+		clean)
+			COMMAND="${cmd}"
+			;;
+		distclean)
+			COMMAND="${cmd}"
+			;;
+		*)
+			fatal_usage "Unknown command: ${cmd}"
+			;;
+	esac
+}
+
+while [ $# -gt 0 ]; do
+	case $1 in
+		--targets)
+			shift
+			TARGETS="$1"
+			shift
+			;;
+		--prefix)
+			shift
+			abspath "$1" PREFIX
+			shift
+			;;
+		--destroot)
+			shift
+			abspath "$1" DESTROOT
+			shift
+			;;
+		--buildtools)
+			shift
+			abspath "$1" BUILDTOOLS
+			shift
+			;;
+		--haiku)
+			shift
+			abspath "$1" HAIKUSRC
+			shift
+			;;
+		--clean)
+			shift
+			CLEAN=true
+			;;
+		--distclean)
+			shift
+			CLEAN=true
+			DISTCLEAN=true
+			;;
+		-h|--help)
+			usage
+			exit 0
+			;;
+		-*)
+			fatal_usage "Unknown option $1"
+			;;
+		*)
+			parse_cmd_arg "$1"
+			shift
+			;;
+	esac
+done
+
+
+require_opt() {
+	local optname="$1"
+	local var="$2"
+	if [ -z "${var}" ]; then
+		fatal_usage "Missing required flag ${optname}"
+	fi
+}
+
+require_opt "--prefix" "${PREFIX}"
+require_opt "--destroot" "${DESTROOT}"
+require_opt "--buildtools" "${BUILDTOOLS}"
+require_opt "--haiku" "${HAIKUSRC}"
+
+if [ -z "${COMMAND}" ]; then
+	fatal_usage "Missing required command"
+	exit 1
+fi
+
+# Run the main routine
+main
