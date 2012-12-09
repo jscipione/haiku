@@ -32,11 +32,6 @@ check_error() {
 	fi
 }
 
-# "Return" a value in global $retval
-retval() {
-	retval="$1"
-}
-
 # Resolve a relative path
 abspath() {
 	local path="$1"
