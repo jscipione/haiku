@@ -46,10 +46,149 @@ abspath() {
 	esac
 }
 
-main() {
-	echo "D ${DESTROOT}"
+find_tool() {
+	local varname="$1"
+	shift
+	local names="$*"
+
+	while [ ! -z "${1}" ]; do
+		local path=`which "${1}"`
+		if [ ! -z "${path}" ]; then
+			eval "${varname}=\"${path}\""
+			return
+		fi
+		shift
+	done
+
+	fatal "Could not find required tool: ${names}"
 }
 
+safe_mkdir() {
+	local dir="$1"
+	mkdir -p "${dir}"
+	check_error "Failed to create directory: ${dir}"
+}
+
+# Push a new working directory and verify success
+safe_push_cwd() {
+	local dir="$1"
+	pushd "${dir}" >/dev/null
+	check_error "Failed to change to directory: ${dir}"
+}
+
+# Pop a working directory pushed via safe_push_cwd
+safe_pop_cwd() {
+	popd >/dev/null
+	check_error "Failed to change cwd"
+}
+
+# Perform an autotools build
+build_autotools() {
+	local srcdir="$1"
+	local builddir="$2"
+
+	# Move the configure args to pos $1
+	shift;
+	shift;
+
+	safe_mkdir "${builddir}"
+	safe_push_cwd "${builddir}"
+
+	"${srcdir}/configure" --prefix="${PREFIX}" $@
+	check_error "Configure failed"
+
+	"${GMAKE}" "${JOBS}"
+	check_error "${GMAKE} failed"
+}
+
+# Perform a cmake build
+build_cmake() {
+	local tool="$1"
+	local srcdir="${BUILDTOOLS}/$tool"
+	local builddir="${OBJROOT}/$tool"
+
+	safe_mkdir "${builddir}"
+	safe_push_cwd "${builddir}"
+
+	"${CMAKE}" "-DCMAKE_INSTALL_PREFIX:PATH=${PREFIX}" "${srcdir}" || exit 1
+	check_error "${CMAKE} failed"
+
+	"${GMAKE}" "${JOBS}"
+	check_error "${GMAKE} failed"
+}
+
+# Install using gmake. Assumes that the Makefile supports DESTDIR, which should be the
+# case when using either autoconf or cmake
+install_gmake() {
+	local tool="$1"
+	local builddir="${OBJROOT}/$tool"
+	safe_push_cwd "${builddir}"
+
+	if [ -z "${DESTROOT}" ]; then
+		"${GMAKE}" "${JOBS}" install
+	else
+		"${GMAKE}" "${JOBS}" "DESTDIR=${DESTROOT}" install
+	fi
+
+	check_error "${GMAKE} failed"
+}
+
+# Build all tools
+cmd_build() {
+	# Native FatELF tools are required for all additional builds
+	build_cmake "fatelf"
+	install_gmake "fatelf"
+
+	# Generate portable binutils for all targets. We'll have to build as seperately.
+	#build_autotools "binutils" --without-gnu-as --target="TODO" --enable-targets"TODO"
+	#install_gmake
+
+	# Build the assembler for all supported targets
+	# TODO
+
+	# Build the compiler for M:N hosts:targets
+	# TODO
+}
+
+# Clean the build output
+cmd_clean() {
+	info "Cleaning ${OBJROOT} ..."
+	# TODO - verify
+	echo rm -rf "${OBJROOT}"
+}
+
+# Clean the build output and destroot
+cmd_distclean() {
+	clean
+	if [ ! -z "${DESTROOT}" ]; then
+		info "Cleaning ${DESTROOT} ..."
+		# TODO - verify
+		echo rm -rf "${DESTROOT}"
+	fi
+}
+
+main() {
+	# Find required tools
+	find_tool GMAKE gmake make
+	find_tool CMAKE	cmake
+
+	case "${COMMAND}" in
+		build)
+			cmd_build
+			;;
+		clean)
+			cmd_clean
+			;;
+		distclean)
+			cmd_distclean
+			;;
+		*)
+			fatal_usage "Unknown command: ${cmd}"
+			;;
+	esac
+}
+
+# Print usage
 usage() {
 	# Output to stderr if this occured due to an error, otherwise, stdout
 	# This allows users to page the output of --help, in which case there
@@ -65,21 +204,26 @@ usage() {
 	fprintf $fd "Required Options: "
 	fprintf $fd "  --targets	The target architectures for which cross tools will be built (x86, x86_64, arm, ppc, m68k, mipsel)"
 	fprintf $fd "  --prefix		The binary installation prefix (eg, /usr/local)."
-	fprintf $fd "  --destroot	The installation destroot. This is where the files will actually be installed."
+	fprintf $fd "  --objroot	The directory in which the tool builds will be performed"
 	fprintf $fd "  --buildtools	The path to the Haiku buildtools checkout."
 	fprintf $fd "  --haiku		The path to the Haiku source checkout."
 
 	fprintf $fd ""
 	fprintf $fd "Options:"
-	fprintf $fd "  --hosts		The host architectures for which the cross tools will be built. Accepts the same architecture values as --targets"
+	fprintf $fd "  -j			The number of concurrent build jobs. Passed to make."
+	fprintf $fd "  --destroot	The installation destroot. This is where the files will actually be installed."
+	fprintf $fd "  --hosts		The host architectures for which the cross tools will be built."
+	fprintf $fd "  				Accepts the same architecture values as --targets."
+	fprintf $fd "  				This value is not supported when building a cross-compiler on a non-FatELF host."
 
 	fprintf $fd ""
 	fprintf $fd "Commands: "
 	fprintf $fd "  clean		Clean any intermediate build output."
 	fprintf $fd "  distclean	Clean any intermediate build output, as well as the target destroot (Caution!)."
-	fprintf $fd "  build		Build and install the cross tools."
+	fprintf $fd "  build		Build and install the cross tools (in the destroot, if specified)."
 }
 
+# Print the provided message, usage, and then exit with an error
 fatal_usage() {
 	local msg="$1"
 	error "${msg}\n"
@@ -87,30 +231,33 @@ fatal_usage() {
 	exit 1
 }
 
-parse_cmd_arg() {
-	local cmd="$1"
-
-	# Check if command has already been specified
-	if [ ! -z "${COMMAND}" ]; then
-		fatal_usage "Multiple commands were specified"
+# Verify that a required option was supplied
+require_opt() {
+	local optname="$1"
+	local var="$2"
+	if [ -z "${var}" ]; then
+		fatal_usage "Missing required flag ${optname}"
 	fi
-	
-	case "${cmd}" in
-		build)
-			COMMAND="${cmd}"
-			;;
-		clean)
-			COMMAND="${cmd}"
-			;;
-		distclean)
-			COMMAND="${cmd}"
-			;;
-		*)
-			fatal_usage "Unknown command: ${cmd}"
-			;;
-	esac
 }
 
+# Verify that a required option was supplied and points
+# to an existing directory.
+require_dir_opt() {
+	local optname="$1"
+	local dir="$2"
+
+	require_opt "$optname" $"dir"
+	if [ -f "${dir}" ]; then
+		fatal "Not a directory: ${dir}"
+	fi
+
+	if [ ! -d "${dir}" ]; then
+		fatal "No such directory: ${dir}"
+	fi
+}
+
+
+# Parse command line arguments
 while [ $# -gt 0 ]; do
 	case $1 in
 		--targets)
@@ -118,9 +265,19 @@ while [ $# -gt 0 ]; do
 			TARGETS="$1"
 			shift
 			;;
+		--hosts)
+			shift
+			HOSTS="$1"
+			shift
+			;;
 		--prefix)
 			shift
 			abspath "$1" PREFIX
+			shift
+			;;
+		--objroot)
+			shift
+			abspath "$1" OBJROOT
 			shift
 			;;
 		--destroot)
@@ -138,14 +295,10 @@ while [ $# -gt 0 ]; do
 			abspath "$1" HAIKUSRC
 			shift
 			;;
-		--clean)
+		-j)
 			shift
-			CLEAN=true
-			;;
-		--distclean)
+			JOBS="-j$1"
 			shift
-			CLEAN=true
-			DISTCLEAN=true
 			;;
 		-h|--help)
 			usage
@@ -155,25 +308,20 @@ while [ $# -gt 0 ]; do
 			fatal_usage "Unknown option $1"
 			;;
 		*)
-			parse_cmd_arg "$1"
+			# Check if command has already been specified
+			if [ ! -z "${COMMAND}" ]; then
+				fatal_usage "Unexpected command $1. Multiple commands were specified"
+			fi
+			COMMAND="${1}"
 			shift
 			;;
 	esac
 done
 
-
-require_opt() {
-	local optname="$1"
-	local var="$2"
-	if [ -z "${var}" ]; then
-		fatal_usage "Missing required flag ${optname}"
-	fi
-}
-
 require_opt "--prefix" "${PREFIX}"
-require_opt "--destroot" "${DESTROOT}"
-require_opt "--buildtools" "${BUILDTOOLS}"
-require_opt "--haiku" "${HAIKUSRC}"
+require_opt "--objroot" "${OBJROOT}"
+require_dir_opt "--buildtools" "${BUILDTOOLS}"
+require_dir_opt "--haiku" "${HAIKUSRC}"
 
 if [ -z "${COMMAND}" ]; then
 	fatal_usage "Missing required command"
