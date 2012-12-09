@@ -15,7 +15,7 @@ fprintf() {
 
 # Print an error-level message to stderr
 error() {
-	fprintf 2 "$1"
+	fprintf 2 "ERROR: $1"
 }
 
 # Print a fatal message to stderr and exit
@@ -30,6 +30,11 @@ check_error() {
 	if [ $? != 0 ]; then
 		fatal "$1"
 	fi
+}
+
+# "Return" a value in global $retval
+retval() {
+	retval="$1"
 }
 
 # Resolve a relative path
@@ -82,52 +87,66 @@ safe_pop_cwd() {
 	check_error "Failed to change cwd"
 }
 
+# Append a value to a list and echo the result to stdout.
+list_append() {
+	local list="$1"
+	local value="$2"
+
+	# Use xargs to strip excess whitespace
+	echo "${list}" "${2}" | xargs
+}
+
 # Perform an autotools build
-build_autotools() {
-	local srcdir="$1"
-	local builddir="$2"
+run_autoconf() {
+	local tool="$1"
+	local objdir="$2"
+	local prefix="$3"
 
 	# Move the configure args to pos $1
 	shift;
 	shift;
+	shift;
+
+	local srcdir="${BUILDTOOLS}/$tool"
+	local builddir="${OBJROOT}/$objdir"
 
 	safe_mkdir "${builddir}"
 	safe_push_cwd "${builddir}"
 
-	"${srcdir}/configure" --prefix="${PREFIX}" $@
+	"${srcdir}/configure" -C --prefix="${prefix}" $@ >> "${LOGFILE}" 2>&1
 	check_error "Configure failed"
-
-	"${GMAKE}" "${JOBS}"
-	check_error "${GMAKE} failed"
 }
 
 # Perform a cmake build
-build_cmake() {
+run_cmake() {
 	local tool="$1"
+	local objdir="$2"
+	local prefix="$3"
 	local srcdir="${BUILDTOOLS}/$tool"
-	local builddir="${OBJROOT}/$tool"
+	local builddir="${OBJROOT}/$objdir"
 
 	safe_mkdir "${builddir}"
 	safe_push_cwd "${builddir}"
 
-	"${CMAKE}" "-DCMAKE_INSTALL_PREFIX:PATH=${PREFIX}" "${srcdir}" || exit 1
+	"${CMAKE}" "-DCMAKE_INSTALL_PREFIX:PATH=${prefix}" "${srcdir}" >> "${LOGFILE}" 2>&1
 	check_error "${CMAKE} failed"
-
-	"${GMAKE}" "${JOBS}"
-	check_error "${GMAKE} failed"
 }
 
-# Install using gmake. Assumes that the Makefile supports DESTDIR, which should be the
-# case when using either autoconf or cmake
-install_gmake() {
-	local tool="$1"
-	local builddir="${OBJROOT}/$tool"
+# Install using gmake. Assumes that the Makefile supports DESTDIR, which should
+# be the case when using either autoconf or cmake
+run_gmake() {
+	local objdir="$1"
+
+	# Move the make args to pos $1
+	shift;
+
+	local builddir="${OBJROOT}/$objdir"
 	safe_push_cwd "${builddir}"
 
 	if [ -z "${DESTROOT}" ]; then
-		"${GMAKE}" "${JOBS}" install
+		"${GMAKE}" ${JOBS} $@ >> "${LOGFILE}" 2>&1
 	else
-		"${GMAKE}" "${JOBS}" "DESTDIR=${DESTROOT}" install
+		"${GMAKE}" ${JOBS} "DESTDIR=${DESTROOT}" $@ >> "${LOGFILE}" 2>&1
 	fi
 
 	check_error "${GMAKE} failed"
@@ -136,15 +155,38 @@ install_gmake() {
 # Build all tools
 cmd_build() {
 	# Native FatELF tools are required for all additional builds
-	build_cmake "fatelf"
-	install_gmake "fatelf"
+	info "Building FatELF tools"
+	run_cmake "fatelf" "fatelf-objs" "${PREFIX}"
+	run_gmake "fatelf-objs" install
 
-	# Generate portable binutils for all targets. We'll have to build as seperately.
-	#build_autotools "binutils" --without-gnu-as --target="TODO" --enable-targets"TODO"
-	#install_gmake
+	# Generate portable binutils for all targets. We'll have to build as(1)
+	# seperately.
+	eval set -- "${TARGET_TRIPLES}"
+	local binutils_target="$1"
+	local binutils_targets=`echo "${TARGET_TRIPLES}" | sed 's/ /,/g'`
 
-	# Build the assembler for all supported targets
-	# TODO
+	info "Building binutils for all targets"
+	run_autoconf "binutils" "binutils-objs" "${PREFIX}" \
+		--program-prefix="" \
+		--without-gnu-as \
+		"--target=${binutils_target}" \
+		"--enable-targets=${binutils_targets}"
+	run_gmake "binutils-objs" tooldir="${PREFIX}"
+	run_gmake "binutils-objs" tooldir="${PREFIX}" install
+
+	# Build (just) the assembler for all supported targets
+	for arch in ${TARGETS}; do
+		info "Building assembler for ${arch}"
+
+		local arch_prefix="${PREFIX}/libexec/as/${arch}"
+		run_autoconf "binutils" "binutils-${arch}-objs" "${arch_prefix}" \
+			--program-prefix="" \
+			"--target=$(arch_triple ${arch})"
+
+		run_gmake "binutils-${arch}-objs" tooldir="${arch_prefix}" configure-gas
+		run_gmake "binutils-${arch}-objs" tooldir="${arch_prefix}" gas
+		run_gmake "binutils-${arch}-objs" tooldir="${arch_prefix}" install-gas
+	done
 
 	# Build the compiler for M:N hosts:targets
 	# TODO
@@ -153,13 +195,12 @@ cmd_build() {
 # Clean the build output
 cmd_clean() {
 	info "Cleaning ${OBJROOT} ..."
-	# TODO - verify
-	echo rm -rf "${OBJROOT}"
+	rm -rf "${OBJROOT}"
 }
 
 # Clean the build output and destroot
 cmd_distclean() {
-	clean
+	cmd_clean
 	if [ ! -z "${DESTROOT}" ]; then
 		info "Cleaning ${DESTROOT} ..."
 		# TODO - verify
@@ -167,10 +208,76 @@ cmd_distclean() {
 	fi
 }
 
+# Compute the triple for the given arch, and echo
+# it to stdout
+arch_triple() {
+	local arch="$1"
+
+	case "$arch" in
+		x86)
+			local triple=i586-pc-haiku
+			;;
+		x86_64)
+			local triple=x86_64-unknown-haiku
+			;;
+		ppc)
+			local triple=powerpc-apple-haiku
+			;;
+		m68k)
+			local triple=m68k-unknown-haiku
+			;;
+		arm)
+			local triple=arm-unknown-haiku
+			;;
+		mipsel)
+			local triple=mipsel-unknown-haiku
+			;;
+		*)
+			fatal "Unsupported architecture: $2"
+			;;
+	esac
+
+	echo "${triple}"
+}
+
+# Map arch types to their triple, and generate a ${prefix}_TRIPLES variable
+# containing the space-seperated triples.
+compute_triples() {
+	local varprefix="$1"
+	local archs="$2"
+
+
+	for arch in ${TARGETS}; do
+		local triple=$(arch_triple "${arch}")
+		local triples=$(list_append "${triples}" "${triple}")
+		local arch_flags=$(list_append "${arch_flags}" "-arch ${arch}")
+	done
+
+	eval "${varprefix}_ARCH_FLAGS=\"${arch_flags}\""
+	eval "${varprefix}_TRIPLES=\"${triples}\""
+}
+
 main() {
 	# Find required tools
 	find_tool GMAKE gmake make
 	find_tool CMAKE	cmake
+
+	# Parse architectures and compute the appropriate triples
+	compute_triples "TARGET" "${TARGETS}"
+	compute_triples "HOST" "${HOSTS}"
+
+	info "Configured for targets: ${TARGETS}"
+	if [ ! -z "${HOSTS}" ]; then
+		info "Configured for hosts: ${HOSTS}"
+
+		# TODO: We can't actually support/test this until the fat
+		# toolchains are self hosting
+		fatal "TODO: Fat host builds are not currently supported"
+	fi
+
+	info "Logging to ${LOGFILE}"
+	safe_mkdir `dirname "${LOGFILE}"`
+	echo -n '' >"${LOGFILE}"
 
 	case "${COMMAND}" in
 		build)
@@ -206,11 +313,10 @@ usage() {
 	fprintf $fd "  --prefix		The binary installation prefix (eg, /usr/local)."
 	fprintf $fd "  --objroot	The directory in which the tool builds will be performed"
 	fprintf $fd "  --buildtools	The path to the Haiku buildtools checkout."
-	fprintf $fd "  --haiku		The path to the Haiku source checkout."
 
 	fprintf $fd ""
 	fprintf $fd "Options:"
-	fprintf $fd "  -j			The number of concurrent build jobs. Passed to make."
+	fprintf $fd "  -jN			The number of concurrent build jobs. Passed to make."
 	fprintf $fd "  --destroot	The installation destroot. This is where the files will actually be installed."
 	fprintf $fd "  --hosts		The host architectures for which the cross tools will be built."
 	fprintf $fd "  				Accepts the same architecture values as --targets."
@@ -246,7 +352,7 @@ require_dir_opt() {
 	local optname="$1"
 	local dir="$2"
 
-	require_opt "$optname" $"dir"
+	require_opt "${optname}" "${dir}"
 	if [ -f "${dir}" ]; then
 		fatal "Not a directory: ${dir}"
 	fi
@@ -290,14 +396,13 @@ while [ $# -gt 0 ]; do
 			abspath "$1" BUILDTOOLS
 			shift
 			;;
-		--haiku)
-			shift
-			abspath "$1" HAIKUSRC
-			shift
-			;;
 		-j)
 			shift
 			JOBS="-j$1"
+			shift
+			;;
+		-j*)
+			JOBS="$1"
 			shift
 			;;
 		-h|--help)
@@ -318,15 +423,20 @@ while [ $# -gt 0 ]; do
 	esac
 done
 
-require_opt "--prefix" "${PREFIX}"
+if [ "${COMMAND}" != "clean" ] && [ "${COMMAND}"  != "distclean" ]; then
+	require_opt "--prefix" "${PREFIX}"
+	require_opt "--targets" "${TARGETS}"
+	require_dir_opt "--buildtools" "${BUILDTOOLS}"
+fi
+
 require_opt "--objroot" "${OBJROOT}"
-require_dir_opt "--buildtools" "${BUILDTOOLS}"
-require_dir_opt "--haiku" "${HAIKUSRC}"
 
 if [ -z "${COMMAND}" ]; then
 	fatal_usage "Missing required command"
 	exit 1
 fi
+
+LOGFILE="${OBJROOT}/build.log"
 
 # Run the main routine
 main
