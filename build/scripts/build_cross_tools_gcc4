@@ -80,7 +80,6 @@ cd $haikuOutputDir
 haikuOutputDir=$(pwd)
 
 binutilsSourceDir=$buildToolsDir/binutils
-fatelfSourceDir=$buildToolsDir/fatelf
 gccSourceDir=$buildToolsDir/gcc
 
 
@@ -103,7 +102,6 @@ find $gccSourceDir -name \*.info -print0 | xargs -0 touch
 installDir=$haikuOutputDir/cross-tools
 objDir=$haikuOutputDir/cross-tools-build
 binutilsObjDir=$objDir/binutils
-fatelfObjDir=$objDir/fatelf
 gccObjDir=$objDir/gcc
 stdcxxObjDir=$objDir/stdcxx
 tmpIncludeDir=$objDir/sysincludes
@@ -111,15 +109,9 @@ tmpLibDir=$objDir/syslibs
 
 rm -rf $installDir $objDir
 
-mkdir -p $installDir $objDir $binutilsObjDir $fatelfObjDir $gccObjDir \
-	$stdcxxObjDir $tmpIncludeDir $tmpLibDir || exit 1
+mkdir -p $installDir $objDir $binutilsObjDir $gccObjDir $stdcxxObjDir \
+	$tmpIncludeDir $tmpLibDir || exit 1
 mkdir -p $installDir/lib/gcc/$haikuMachine/$gccVersion
-
-# build fatelf utils
-cd $fatelfObjDir
-cmake -DCMAKE_INSTALL_PREFIX:PATH=$installDir $fatelfSourceDir || exit 1
-$MAKE $additionalMakeArgs || exit 1
-$MAKE $additionalMakeArgs install || exit 1
 
 # force the POSIX locale, as the build (makeinfo) might choke otherwise
 export LC_ALL=POSIX
