@@ -178,8 +178,7 @@ cmd_build() {
 			--program-prefix="" \
 			"--target=$(arch_triple ${arch})"
 
-		run_gmake "binutils-${arch}-objs" tooldir="${arch_prefix}" configure-gas
-		run_gmake "binutils-${arch}-objs" tooldir="${arch_prefix}" gas
+		run_gmake "binutils-${arch}-objs" tooldir="${arch_prefix}" all
 		run_gmake "binutils-${arch}-objs" tooldir="${arch_prefix}" install-gas
 	done
 
