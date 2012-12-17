@@ -69,6 +69,13 @@ safe_mkdir() {
 	check_error "Failed to create directory: ${dir}"
 }
 
+safe_cp() {
+	local src="$1"
+	local dest="$2"
+	cp "${src}" "${dest}"
+	check_error "Failed to copy file"
+}
+
 # Push a new working directory and verify success
 safe_push_cwd() {
 	local dir="$1"
@@ -80,6 +87,15 @@ safe_push_cwd() {
 safe_pop_cwd() {
 	popd >/dev/null
 	check_error "Failed to change cwd"
+}
+
+# Create a hard link from arg2 (dest) to arg1 (source)
+safe_ln() {
+	local src="$1"
+	local dest="$2"
+
+	ln -f "${src}" "${dest}"
+	check_error "ln $1 $2 failed"
 }
 
 # Append a value to a list and echo the result to stdout.
@@ -141,18 +157,58 @@ run_gmake() {
 	if [ -z "${DESTROOT}" ]; then
 		"${GMAKE}" ${JOBS} $@ >> "${LOGFILE}" 2>&1
 	else
+		# Ensure that our caller can override DESTDIR by placing the caller's
+		# arguments after our own.
 		"${GMAKE}" ${JOBS} "DESTDIR=${DESTROOT}" $@ >> "${LOGFILE}" 2>&1
 	fi
 
 	check_error "${GMAKE} failed"
 }
 
+# touch all info files in order to avoid the dependency on makeinfo
+# (which apparently doesn't work reliably on all the different host 
+# configurations and changes files which in turn appear as local changes
+# to the VCS).
+touch_mkinfo() {
+	local tool="$1"
+	local srcdir="${BUILDTOOLS}/$tool"
+
+	find "${srcdir}" -name \*.info -exec touch \{\} \;
+	check_error "touch_mkinfo() failed"
+}
+
+# copy headers used for the build
+copy_headers() {
+	local src=$1
+	local target=$2
+
+	headers="$(find "$src" -name \*\.h)"
+	check_error "searching for headers failed"
+
+	headers="$(echo $headers | sed -e "s@$src/@@g")"
+	check_error "sed failed"
+
+	for f in $headers; do
+		local header_dir="$target/$(dirname $f)"
+		safe_mkdir "$header_dir"
+		safe_cp "$src/$f" "$header_dir"
+	done
+}
+
 # Build all tools
 cmd_build() {
+	local binpath="${DESTROOT}/${PREFIX}/bin"
+	safe_mkdir "${binpath}"
+
 	# Native FatELF tools are required for all additional builds
 	info "Building FatELF tools"
 	run_cmake "fatelf" "fatelf-objs" "${PREFIX}"
 	run_gmake "fatelf-objs" install
+
+	# Create compatibility links for front-end compiler/assembler drivers
+	safe_ln "${binpath}/fatelf-gcc" "${binpath}/gcc"
+	safe_ln "${binpath}/fatelf-gcc" "${binpath}/g++"
+	safe_ln "${binpath}/fatelf-as" "${binpath}/as"
 
 	# Generate portable binutils for all targets. We'll have to build as(1)
 	# seperately.
@@ -161,6 +217,7 @@ cmd_build() {
 	local binutils_targets=`echo "${TARGET_TRIPLES}" | sed 's/ /,/g'`
 
 	info "Building binutils for all targets"
+	touch_mkinfo "binutils"
 	run_autoconf "binutils" "binutils-objs" "${PREFIX}" \
 		--program-prefix="" \
 		--without-gnu-as \
@@ -182,8 +239,67 @@ cmd_build() {
 		run_gmake "binutils-${arch}-objs" tooldir="${arch_prefix}" install-gas
 	done
 
+	# Populate the object root
+	local sysinc="${OBJROOT}/sysincludes"
+	local syslib="${OBJROOT}/syslib"
+
+	copy_headers "${HAIKU_SRC}/headers/config" "$sysinc/config"
+	copy_headers "${HAIKU_SRC}/headers/os" "$sysinc/os"
+	copy_headers "${HAIKU_SRC}/headers/posix" "$sysinc/posix"
+
+	# The GCC build process expects to find toolchain commands under names
+	# like '<triplet>-<cmd>'. Some commands (ie, ranlib) change their behavior
+	# depending on the name under which they're called, so we have to use
+	# a shell script for indirection.
+	local gcc_toolpath="${OBJROOT}/gcc-bin"
+	safe_mkdir "${gcc_toolpath}"
+
+	for arch in ${TARGETS}; do
+		for prog in ar nm ranlib strip ld as; do
+			local cmdname="$(arch_triple ${arch})-${prog}"
+			local cmdpath="${gcc_toolpath}/${cmdname}"
+
+			echo '#!/bin/sh' > "${cmdpath}" || exit 1
+
+			if [ "${prog}" = "as" ]; then
+				echo "exec \"${binpath}/${prog}\" -arch \"${arch}\" \$*" >> "${cmdpath}" || exit 1
+			else
+				echo "exec \"${binpath}/${prog}\" \$*" >> "${cmdpath}" || exit 1
+			fi
+			chmod a+x "${cmdpath}" || exit 1
+		done
+	done
+
 	# Build the compiler for M:N hosts:targets
-	# TODO
+	local orig_PATH="${PATH}"
+	export PATH="${gcc_toolpath}:${PATH}"
+
+	touch_mkinfo "gcc"
+	for arch in ${TARGETS}; do
+		info "Building compiler for ${arch}"
+
+		run_autoconf "gcc" "gcc-${arch}-objs" "${PREFIX}" \
+				--program-prefix="$(arch_triple ${arch})-" \
+				--target="$(arch_triple ${arch})" \
+				--disable-nls \
+				--disable-shared \
+				--with-system-zlib \
+				--enable-languages=c,c++ \
+				--enable-lto \
+				--enable-frame-pointer \
+				--with-headers="$sysinc" \
+				--with-libs="$syslib"
+		run_gmake "gcc-${arch}-objs"
+		run_gmake "gcc-${arch}-objs" \
+			DESTDIR="${OBJROOT}/gcc-${arch}-objs/install_root" \
+			install-gcc
+			# FATELF_TODO -- should only be enabled when host=target
+			# This will have to wait until we have a self-hosting toolchain
+			#install-target
+	done
+	export PATH="${orig_PATH}"
+
+	# TODO - Install+merge compiler results
 }
 
 # Clean the build output
@@ -308,6 +424,7 @@ usage() {
 	fprintf $fd "  --prefix     The binary installation prefix (eg, /usr/local)."
 	fprintf $fd "  --objroot    The directory in which the tool builds will be performed"
 	fprintf $fd "  --buildtools The path to the Haiku buildtools checkout."
+	fprintf $fd "  --haiku      The path to the Haiku sources."
 
 	fprintf $fd ""
 	fprintf $fd "Options:"
@@ -395,6 +512,11 @@ while [ $# -gt 0 ]; do
 			abspath "$1" BUILDTOOLS
 			shift
 			;;
+		--haiku)
+			shift
+			abspath "$1" HAIKU_SRC
+			shift
+			;;
 		-j)
 			shift
 			JOBS="-j$1"
@@ -426,6 +548,7 @@ if [ "${COMMAND}" != "clean" ] && [ "${COMMAND}"  != "distclean" ]; then
 	require_opt "--prefix" "${PREFIX}"
 	require_opt "--targets" "${TARGETS}"
 	require_dir_opt "--buildtools" "${BUILDTOOLS}"
+	require_dir_opt "--haiku" "${HAIKU_SRC}"
 fi
 
 require_opt "--objroot" "${OBJROOT}"
