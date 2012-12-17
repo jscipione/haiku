@@ -107,6 +107,21 @@ list_append() {
 	echo "${list}" "${2}" | xargs
 }
 
+# Compute the canonical arch name for the given arch, and echo
+# it to stdout.
+canonical_arch() {
+	local arch="$1"
+
+	case "$arch" in
+		x86)
+			echo "i386"
+			;;
+		*)
+			echo "${arch}"
+			;;
+	esac
+}
+
 # Compute the triple for the given arch, and echo
 # it to stdout
 arch_triple() {
@@ -171,7 +186,24 @@ run_cmake() {
 	safe_mkdir "${builddir}"
 	safe_push_cwd "${builddir}"
 
-	"${CMAKE}" "-DCMAKE_INSTALL_PREFIX:PATH=${prefix}" "${srcdir}" >> "${LOGFILE}" 2>&1
+	# Assemble the host architecture list for cmake
+	local cmake_archs_env=""
+	if [ ! -z "${HOSTS}" ]; then
+		for arch in ${HOSTS}; do
+			if [ ! -z "${cmake_archs_env}" ]; then
+				cmake_archs_env="${cmake_archs_env};"
+			fi
+
+			local cmake_archs_env="${cmake_archs_env}$(canonical_arch ${arch})"
+		done
+
+		local cmake_archs_env="CMAKE_OSX_ARCHITECTURES=${cmake_archs_env}"
+	fi
+
+	env "${cmake_archs_env}" "${CMAKE}" \
+		"-DCMAKE_INSTALL_PREFIX:PATH=${prefix}" \
+		"${srcdir}" >> "${LOGFILE}" 2>&1
+
 	check_error "${CMAKE} failed"
 }
 
@@ -391,10 +423,6 @@ main() {
 	info "Configured for targets: ${TARGETS}"
 	if [ ! -z "${HOSTS}" ]; then
 		info "Configured for hosts: ${HOSTS}"
-
-		# TODO: We can't actually support/test this until the fat
-		# toolchains are self hosting
-		fatal "TODO: Fat host builds are not currently supported"
 	fi
 
 	info "Logging to ${LOGFILE}"
@@ -570,7 +598,22 @@ if [ -z "${COMMAND}" ]; then
 	exit 1
 fi
 
+# Determine whether the host supports fat binaries
+FAT_BIN_TYPE=""
+case "$(uname -s)" in
+	Haiku)
+		FAT_BIN_TYPE="elf"
+		;;
+	Darwin)
+		FAT_BIN_TYPE="macho"
+		;;
+esac
+
 LOGFILE="${OBJROOT}/build.log"
+
+if [ ! -z "${HOSTS}" ] && [ -z "${FAT_BIN_TYPE}" ]; then
+	fatal "Can't build for multiple hosts. Fat binaries are not supported by $(uname -s)."
+fi
 
 # Run the main routine
 main
