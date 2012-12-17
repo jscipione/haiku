@@ -107,53 +107,6 @@ list_append() {
 	echo "${list}" "${2}" | xargs
 }
 
-# Compute the canonical arch name for the given arch, and echo
-# it to stdout.
-canonical_arch() {
-	local arch="$1"
-
-	case "$arch" in
-		x86)
-			echo "i386"
-			;;
-		*)
-			echo "${arch}"
-			;;
-	esac
-}
-
-# Compute the triple for the given arch, and echo
-# it to stdout
-arch_triple() {
-	local arch="$1"
-
-	case "$arch" in
-		x86)
-			local triple=i586-pc-haiku
-			;;
-		x86_64)
-			local triple=x86_64-unknown-haiku
-			;;
-		ppc)
-			local triple=powerpc-apple-haiku
-			;;
-		m68k)
-			local triple=m68k-unknown-haiku
-			;;
-		arm)
-			local triple=arm-unknown-haiku
-			;;
-		mipsel)
-			local triple=mipsel-unknown-haiku
-			;;
-		*)
-			fatal "Unsupported architecture: $2"
-			;;
-	esac
-
-	echo "${triple}"
-}
-
 # Perform an autotools build
 run_autoconf() {
 	local tool="$1"
@@ -175,6 +128,19 @@ run_autoconf() {
 	check_error "Configure failed"
 }
 
+# Extract the arch from a host triple, and then map to a canonical arch
+triple_arch() {
+	local triple=$1
+	local arch=$(echo "$triple" | awk -F '-' '{print $1}')
+	case "${arch}" in
+		x86)	echo "i386";;
+		i486)	echo "i386";;
+		i586)	echo "i386";;
+		i686)	echo "i386";;
+		*)		echo "${arch}";;
+	esac
+}
+
 # Perform a cmake build
 run_cmake() {
 	local tool="$1"
@@ -194,7 +160,7 @@ run_cmake() {
 				cmake_archs_env="${cmake_archs_env};"
 			fi
 
-			local cmake_archs_env="${cmake_archs_env}$(canonical_arch ${arch})"
+			local cmake_archs_env="${cmake_archs_env}$(triple_arch ${arch})"
 		done
 
 		local cmake_archs_env="CMAKE_OSX_ARCHITECTURES=${cmake_archs_env}"
@@ -279,9 +245,9 @@ cmd_build() {
 
 	# Generate portable binutils for all targets. We'll have to build as(1)
 	# seperately.
-	eval set -- "${TARGET_TRIPLES}"
+	eval set -- "${TARGETS}"
 	local binutils_target="$1"
-	local binutils_targets=`echo "${TARGET_TRIPLES}" | sed 's/ /,/g'`
+	local binutils_targets=`echo "${TARGETS}" | sed 's/ /,/g'`
 
 	info "Building binutils"
 	touch_mkinfo "binutils"
@@ -299,10 +265,10 @@ cmd_build() {
 	for arch in ${TARGETS}; do
 		info "Building assembler for ${arch}"
 
-		local arch_prefix="${PREFIX}/$(arch_triple ${arch})"
+		local arch_prefix="${PREFIX}/${arch}"
 		run_autoconf "binutils" "binutils-${arch}-objs" "${arch_prefix}" \
 			--program-prefix="" \
-			"--target=$(arch_triple ${arch})"
+			"--target=${arch}"
 
 		run_gmake "binutils-${arch}-objs" tooldir="${arch_prefix}" all
 
@@ -319,7 +285,7 @@ cmd_build() {
 
 	for arch in ${TARGETS}; do
 		for prog in ar nm ranlib strip ld as; do
-			local cmdname="$(arch_triple ${arch})-${prog}"
+			local cmdname="${arch}-${prog}"
 			local cmdpath="${gcc_toolpath}/${cmdname}"
 
 			echo '#!/bin/sh' > "${cmdpath}" || exit 1
@@ -353,8 +319,8 @@ cmd_build() {
 		info "Building compiler for ${arch}"
 
 		run_autoconf "gcc" "gcc-${arch}-objs" "${PREFIX}" \
-				--program-prefix="$(arch_triple ${arch})-" \
-				--target="$(arch_triple ${arch})" \
+				--program-prefix="${arch}-" \
+				--target="${arch}" \
 				--with-headers="$sysinc" \
 				--with-libs="$syslib" \
 				--disable-nls \
@@ -394,31 +360,10 @@ cmd_distclean() {
 	fi
 }
 
-# Map arch types to their triple, and generate a ${prefix}_TRIPLES variable
-# containing the space-seperated triples.
-compute_triples() {
-	local varprefix="$1"
-	local archs="$2"
-
-
-	for arch in ${TARGETS}; do
-		local triple=$(arch_triple "${arch}")
-		local triples=$(list_append "${triples}" "${triple}")
-		local arch_flags=$(list_append "${arch_flags}" "-arch ${arch}")
-	done
-
-	eval "${varprefix}_ARCH_FLAGS=\"${arch_flags}\""
-	eval "${varprefix}_TRIPLES=\"${triples}\""
-}
-
 main() {
 	# Find required tools
 	find_tool GMAKE gmake make
 	find_tool CMAKE	cmake
-
-	# Parse architectures and compute the appropriate triples
-	compute_triples "TARGET" "${TARGETS}"
-	compute_triples "HOST" "${HOSTS}"
 
 	info "Configured for targets: ${TARGETS}"
 	if [ ! -z "${HOSTS}" ]; then
@@ -459,8 +404,8 @@ usage() {
 
 	fprintf $fd "Usage: $0 <options> <command>"
 	fprintf $fd "Required Options: "
-	fprintf $fd "  --targets    The target architectures for which cross tools will be built"
-	fprintf $fd "               (x86, x86_64, arm, ppc, m68k, mipsel)"
+	fprintf $fd "  --targets    The target triples for which cross tools will be built"
+	fprintf $fd "               (eg, i586-pc-haiku, i686-apple-darwin)"
 	fprintf $fd "  --prefix     The binary installation prefix (eg, /usr/local)."
 	fprintf $fd "  --objroot    The directory in which the tool builds will be performed"
 	fprintf $fd "  --buildtools The path to the Haiku buildtools checkout."
@@ -472,9 +417,9 @@ usage() {
 	fprintf $fd "  --destroot   The installation destroot. This is where the files will"
 	fprintf $fd "               actually be installed."
 	fprintf $fd "  --hosts      The host architectures for which the cross tools will be built."
-	fprintf $fd "               Accepts the same architecture values as --targets."
-	fprintf $fd "               This value is not supported when building a cross-compiler on a"
-	fprintf $fd "               non-FatELF host."
+	fprintf $fd "               Accepts the same target triple values as --targets."
+	fprintf $fd "               This value is only supported when building a cross-compiler"
+	fprintf $fd "               on a Mach-O or FatELF host."
 
 	fprintf $fd ""
 	fprintf $fd "Commands: "
