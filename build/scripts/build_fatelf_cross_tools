@@ -203,6 +203,8 @@ cmd_build() {
 	# Native FatELF tools are required for all additional builds
 	info "Building FatELF tools"
 	run_cmake "fatelf" "fatelf-objs" "${PREFIX}"
+
+	info "Installing FatELF tools"
 	run_gmake "fatelf-objs" install
 
 	# Create compatibility links for front-end compiler/assembler drivers
@@ -210,13 +212,14 @@ cmd_build() {
 	safe_ln "${binpath}/fatelf-gcc" "${binpath}/g++"
 	safe_ln "${binpath}/fatelf-as" "${binpath}/as"
 
+
 	# Generate portable binutils for all targets. We'll have to build as(1)
 	# seperately.
 	eval set -- "${TARGET_TRIPLES}"
 	local binutils_target="$1"
 	local binutils_targets=`echo "${TARGET_TRIPLES}" | sed 's/ /,/g'`
 
-	info "Building binutils for all targets"
+	info "Building binutils"
 	touch_mkinfo "binutils"
 	run_autoconf "binutils" "binutils-objs" "${PREFIX}" \
 		--program-prefix="" \
@@ -224,28 +227,24 @@ cmd_build() {
 		"--target=${binutils_target}" \
 		"--enable-targets=${binutils_targets}"
 	run_gmake "binutils-objs" tooldir="${PREFIX}"
+
+	info "Installing binutils"
 	run_gmake "binutils-objs" tooldir="${PREFIX}" install
 
 	# Build (just) the assembler for all supported targets
 	for arch in ${TARGETS}; do
 		info "Building assembler for ${arch}"
 
-		local arch_prefix="${PREFIX}/libexec/as/${arch}"
+		local arch_prefix="${PREFIX}/$(arch_triple ${arch})"
 		run_autoconf "binutils" "binutils-${arch}-objs" "${arch_prefix}" \
 			--program-prefix="" \
 			"--target=$(arch_triple ${arch})"
 
 		run_gmake "binutils-${arch}-objs" tooldir="${arch_prefix}" all
+
+		info "Installing assembler for ${arch}"
 		run_gmake "binutils-${arch}-objs" tooldir="${arch_prefix}" install-gas
 	done
-
-	# Populate the object root
-	local sysinc="${OBJROOT}/sysincludes"
-	local syslib="${OBJROOT}/syslib"
-
-	copy_headers "${HAIKU_SRC}/headers/config" "$sysinc/config"
-	copy_headers "${HAIKU_SRC}/headers/os" "$sysinc/os"
-	copy_headers "${HAIKU_SRC}/headers/posix" "$sysinc/posix"
 
 	# The GCC build process expects to find toolchain commands under names
 	# like '<triplet>-<cmd>'. Some commands (ie, ranlib) change their behavior
@@ -271,6 +270,17 @@ cmd_build() {
 	done
 
 	# Build the compiler for M:N hosts:targets
+	# Populate the object root
+	local sysinc="${OBJROOT}/sysincludes"
+	local syslib="${OBJROOT}/syslib"
+
+	safe_mkdir "${syslib}"
+	safe_mkdir "${sysinc}"
+
+	copy_headers "${HAIKU_SRC}/headers/config" "$sysinc/config"
+	copy_headers "${HAIKU_SRC}/headers/os" "$sysinc/os"
+	copy_headers "${HAIKU_SRC}/headers/posix" "$sysinc/posix"
+
 	local orig_PATH="${PATH}"
 	export PATH="${gcc_toolpath}:${PATH}"
 
@@ -281,17 +291,19 @@ cmd_build() {
 		run_autoconf "gcc" "gcc-${arch}-objs" "${PREFIX}" \
 				--program-prefix="$(arch_triple ${arch})-" \
 				--target="$(arch_triple ${arch})" \
+				--with-headers="$sysinc" \
+				--with-libs="$syslib" \
 				--disable-nls \
 				--disable-shared \
-				--with-system-zlib \
-				--enable-languages=c,c++ \
-				--enable-lto \
-				--enable-frame-pointer \
-				--with-headers="$sysinc" \
-				--with-libs="$syslib"
+				--without-libiconv-prefix \
+				--disable-libstdcxx-pch \
+				--with-htmldir=html-docs --enable-lto \
+				--enable-frame-pointer
 		run_gmake "gcc-${arch}-objs"
+
+		info "Installing compiler for ${arch}"
 		run_gmake "gcc-${arch}-objs" \
-			DESTDIR="${OBJROOT}/gcc-${arch}-objs/install_root" \
+			DESTDIR="${OBJROOT}/gcc-${arch}-root" \
 			install-gcc
 			# FATELF_TODO -- should only be enabled when host=target
 			# This will have to wait until we have a self-hosting toolchain
