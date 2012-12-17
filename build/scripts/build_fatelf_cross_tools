@@ -107,6 +107,38 @@ list_append() {
 	echo "${list}" "${2}" | xargs
 }
 
+# Compute the triple for the given arch, and echo
+# it to stdout
+arch_triple() {
+	local arch="$1"
+
+	case "$arch" in
+		x86)
+			local triple=i586-pc-haiku
+			;;
+		x86_64)
+			local triple=x86_64-unknown-haiku
+			;;
+		ppc)
+			local triple=powerpc-apple-haiku
+			;;
+		m68k)
+			local triple=m68k-unknown-haiku
+			;;
+		arm)
+			local triple=arm-unknown-haiku
+			;;
+		mipsel)
+			local triple=mipsel-unknown-haiku
+			;;
+		*)
+			fatal "Unsupported architecture: $2"
+			;;
+	esac
+
+	echo "${triple}"
+}
+
 # Perform an autotools build
 run_autoconf() {
 	local tool="$1"
@@ -328,38 +360,6 @@ cmd_distclean() {
 		# TODO - verify
 		echo rm -rf "${DESTROOT}"
 	fi
-}
-
-# Compute the triple for the given arch, and echo
-# it to stdout
-arch_triple() {
-	local arch="$1"
-
-	case "$arch" in
-		x86)
-			local triple=i586-pc-haiku
-			;;
-		x86_64)
-			local triple=x86_64-unknown-haiku
-			;;
-		ppc)
-			local triple=powerpc-apple-haiku
-			;;
-		m68k)
-			local triple=m68k-unknown-haiku
-			;;
-		arm)
-			local triple=arm-unknown-haiku
-			;;
-		mipsel)
-			local triple=mipsel-unknown-haiku
-			;;
-		*)
-			fatal "Unsupported architecture: $2"
-			;;
-	esac
-
-	echo "${triple}"
 }
 
 # Map arch types to their triple, and generate a ${prefix}_TRIPLES variable
