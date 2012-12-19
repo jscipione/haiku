@@ -689,8 +689,8 @@ fat_type_for_archs() {
 	done
 
 	if [ ! -z "${type}" ]; then
-		set -- "${archs}"
-		if [ $# > 1 ] && [ -z "${type}" ]; then
+		set -- ${archs}
+		if [ $# -gt 1 ] && [ "${type}" = "none" ]; then
 			fatal "Can't build for multiple hosts. Fat binaries are not supported for these architectures."
 		fi
 	fi
