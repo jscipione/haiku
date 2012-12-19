@@ -245,7 +245,7 @@ copy_headers() {
 # Echo the DESTROOT path to be used for thin binaries for a given
 # host architecture
 thin_destroot_path() {
-	local host_arch=$2
+	local host_arch=$1
 
 	echo "${OBJROOT}/root/${host_arch}/"
 }
