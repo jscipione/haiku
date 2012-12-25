@@ -250,38 +250,6 @@ thin_destroot_path() {
 	echo "${OBJROOT}/root/${host_arch}/"
 }
 
-# Build binutils for a specific host architecture, or the current host
-# architecture, if none specified
-build_binutils() {
-	local host_arch="$1"
-
-	# Generate portable binutils for all targets. We'll have to build as(1)
-	# seperately.
-	eval set -- "${TARGETS}"
-	local binutils_target="$1"
-	local binutils_targets=`echo "${TARGETS}" | sed 's/ /,/g'`
-
-	info "Building binutils"
-	touch_mkinfo "binutils"
-	run_autoconf "binutils" "binutils-objs-${host_arch}" "${PREFIX}" \
-		--program-prefix="" \
-		--without-gnu-as \
-		"${host_flag}" \
-		"--host=${host_arch}" \
-		"--target=${binutils_target}" \
-		"--enable-targets=${binutils_targets}"
-	run_gmake "binutils-objs-${host_arch}" tooldir="${PREFIX}"
-
-	info "Installing binutils"
-
-	local dest="$(thin_destroot_path ${host_arch})"
-	safe_mkdir "${dest}"
-
-	run_gmake "binutils-objs-${host_arch}" \
-		DESTDIR="${dest}" \
-		tooldir="${PREFIX}" install
-}
-
 # Glue together multiple binaries into a single fat binary
 # TODO: This only handles *host* fat behavior, not *target* fat handling
 fat_glue() {
@@ -380,36 +348,58 @@ cmd_build() {
 		make_wrapper_tools "${arch}" "false" "${target_toolpath}"
 	done
 
-	# Generate portable binutils for all hosts/targets. We'll have to build as(1)
-	# seperately.
+	# Build binutils for all hosts/targets.
 	push_path "${host_toolpath}"
 	for host_arch in ${HOSTS}; do
-		build_binutils "${host_arch}"
+		# Generate portable binutils for all targets. We'll have to
+		# build as(1) seperately, as it can not support multiple
+		# targets.
+		eval set -- "${TARGETS}"
+		local binutils_target="$1"
+		local binutils_targets=`echo "${TARGETS}" | sed 's/ /,/g'`
+
+		info "Building binutils for ${TARGETS} (host ${host_arch})"
+		touch_mkinfo "binutils"
+		run_autoconf "binutils" "binutils-objs-${host_arch}" "${PREFIX}" \
+			--program-prefix="" \
+			--without-gnu-as \
+			"${host_flag}" \
+			"--host=${host_arch}" \
+			"--target=${binutils_target}" \
+			"--enable-targets=${binutils_targets}"
+		run_gmake "binutils-objs-${host_arch}" tooldir="${PREFIX}"
+
+		info "Installing binutils for ${TARGETS} (host ${host_arch})"
+
+		local dest="$(thin_destroot_path ${host_arch})"
+		safe_mkdir "${dest}"
+
+		run_gmake "binutils-objs-${host_arch}" \
+			DESTDIR="${dest}" \
+			tooldir="${PREFIX}" install
+
+
+		# Build as(1) for each target
+		for arch in ${TARGETS}; do
+			info "Building assembler for ${arch} (host ${host_arch})"
+
+			local arch_prefix="${PREFIX}/${arch}"
+			local objdir="binutils-${host_arch}-${arch}-objs"
+			run_autoconf "binutils" "${objdir}" "${arch_prefix}" \
+				--program-prefix="" \
+				"--host=${host_arch}" \
+				"--target=${arch}"
+
+			run_gmake "${objdir}" tooldir="${arch_prefix}" all
+
+			info "Installing assembler for ${arch} (host ${host_arch})"
+			run_gmake "${objdir}" \
+				DESTDIR="${dest}" \
+				tooldir="${arch_prefix}" install-gas
+		done
 	done
 	pop_path
-	exit 0
 
-	# Build (just) the assembler for all supported targets
-	for arch in ${TARGETS}; do
-		info "Building assembler for ${arch}"
-
-		local arch_prefix="${PREFIX}/${arch}"
-		run_autoconf "binutils" "binutils-${arch}-objs" "${arch_prefix}" \
-			--program-prefix="" \
-			"--target=${arch}"
-
-		run_gmake "binutils-${arch}-objs" tooldir="${arch_prefix}" all
-
-		info "Installing assembler for ${arch}"
-		run_gmake "binutils-${arch}-objs" tooldir="${arch_prefix}" install-gas
-	done
-
-	# The GCC build process expects to find toolchain commands under names
-	# like '<triplet>-<cmd>'. Some commands (ie, ranlib) change their behavior
-	# depending on the name under which they're called, so we have to use
-	# a shell script for indirection.
-	local gcc_toolpath="${OBJROOT}/gcc-bin"
-	safe_mkdir "${gcc_toolpath}"
 
 	# Build the compiler for M:N hosts:targets
 	# Populate the object root
@@ -451,7 +441,7 @@ cmd_build() {
 	done
 	pop_path
 
-	# TODO - Install+merge compiler results
+	# TODO - Merge/install compiler results
 }
 
 # Clean the build output
