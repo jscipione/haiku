@@ -576,8 +576,9 @@ printf("  -> failed to add type to cache\n");
 					= dynamic_cast<DIETemplateTypeParameter*>(_typeEntry);
 				DwarfType* templateType;
 				if (templateTypeEntry != NULL) {
-					if (CreateType(templateTypeEntry->GetType(), templateType)
-						!= B_OK) {
+					if (templateTypeEntry->GetType() == NULL
+						|| CreateType(templateTypeEntry->GetType(),
+							templateType) != B_OK) {
 						continue;
 					}
 				} else {
@@ -625,8 +626,9 @@ DwarfTypeFactory::_CreatePrimitiveType(const BString& name,
 	if (byteSizeValue->IsValid()) {
 		BVariant value;
 		status_t error = fTypeContext->File()->EvaluateDynamicValue(
-			fTypeContext->GetCompilationUnit(), fTypeContext->SubprogramEntry(),
-			byteSizeValue, fTypeContext->TargetInterface(),
+			fTypeContext->GetCompilationUnit(), fTypeContext->AddressSize(),
+			fTypeContext->SubprogramEntry(), byteSizeValue,
+			fTypeContext->TargetInterface(),
 			fTypeContext->InstructionPointer(), fTypeContext->FramePointer(),
 			value);
 		if (error == B_OK && value.IsInteger())
@@ -634,8 +636,9 @@ DwarfTypeFactory::_CreatePrimitiveType(const BString& name,
 	} else if (bitSizeValue->IsValid()) {
 		BVariant value;
 		status_t error = fTypeContext->File()->EvaluateDynamicValue(
-			fTypeContext->GetCompilationUnit(), fTypeContext->SubprogramEntry(),
-			bitSizeValue, fTypeContext->TargetInterface(),
+			fTypeContext->GetCompilationUnit(), fTypeContext->AddressSize(),
+			fTypeContext->SubprogramEntry(), bitSizeValue,
+			fTypeContext->TargetInterface(),
 			fTypeContext->InstructionPointer(), fTypeContext->FramePointer(),
 			value);
 		if (error == B_OK && value.IsInteger())
@@ -973,6 +976,7 @@ DwarfTypeFactory::_CreateEnumerationType(const BString& name,
 			BVariant value;
 			status_t error = fTypeContext->File()->EvaluateConstantValue(
 				fTypeContext->GetCompilationUnit(),
+				fTypeContext->AddressSize(),
 				fTypeContext->SubprogramEntry(), enumeratorEntry->ConstValue(),
 				fTypeContext->TargetInterface(),
 				fTypeContext->InstructionPointer(),
@@ -1019,10 +1023,12 @@ DwarfTypeFactory::_CreateSubrangeType(const BString& name,
 		// evaluate it
 		DIEType* valueType;
 		status_t error = fTypeContext->File()->EvaluateDynamicValue(
-			fTypeContext->GetCompilationUnit(), fTypeContext->SubprogramEntry(),
-			lowerBoundOwnerEntry->LowerBound(), fTypeContext->TargetInterface(),
-			fTypeContext->InstructionPointer(), fTypeContext->FramePointer(),
-			lowerBound, &valueType);
+			fTypeContext->GetCompilationUnit(), fTypeContext->AddressSize(),
+			fTypeContext->SubprogramEntry(),
+			lowerBoundOwnerEntry->LowerBound(),
+			fTypeContext->TargetInterface(),
+			fTypeContext->InstructionPointer(),
+			fTypeContext->FramePointer(), lowerBound, &valueType);
 		if (error != B_OK) {
 			WARNING("  failed to evaluate lower bound: %s\n", strerror(error));
 			return error;
@@ -1046,8 +1052,10 @@ DwarfTypeFactory::_CreateSubrangeType(const BString& name,
 		// evaluate it
 		DIEType* valueType;
 		status_t error = fTypeContext->File()->EvaluateDynamicValue(
-			fTypeContext->GetCompilationUnit(), fTypeContext->SubprogramEntry(),
-			upperBoundOwnerEntry->UpperBound(), fTypeContext->TargetInterface(),
+			fTypeContext->GetCompilationUnit(), fTypeContext->AddressSize(),
+			fTypeContext->SubprogramEntry(),
+			upperBoundOwnerEntry->UpperBound(),
+			fTypeContext->TargetInterface(),
 			fTypeContext->InstructionPointer(), fTypeContext->FramePointer(),
 			upperBound, &valueType);
 		if (error != B_OK) {
@@ -1069,10 +1077,10 @@ DwarfTypeFactory::_CreateSubrangeType(const BString& name,
 			DIEType* valueType;
 			status_t error = fTypeContext->File()->EvaluateDynamicValue(
 				fTypeContext->GetCompilationUnit(),
-				fTypeContext->SubprogramEntry(), countOwnerEntry->Count(),
-				fTypeContext->TargetInterface(),
-				fTypeContext->InstructionPointer(), fTypeContext->FramePointer(),
-				count, &valueType);
+				fTypeContext->AddressSize(), fTypeContext->SubprogramEntry(),
+				countOwnerEntry->Count(), fTypeContext->TargetInterface(),
+				fTypeContext->InstructionPointer(),
+				fTypeContext->FramePointer(), count, &valueType);
 			if (error != B_OK) {
 				WARNING("  failed to evaluate count: %s\n", strerror(error));
 				return error;
@@ -1375,9 +1383,10 @@ DwarfTypeFactory::_ResolveTypeByteSize(DIEType* typeEntry,
 	// get the actual value
 	BVariant size;
 	status_t error = fTypeContext->File()->EvaluateDynamicValue(
-		fTypeContext->GetCompilationUnit(), fTypeContext->SubprogramEntry(),
-		sizeValue, fTypeContext->TargetInterface(),
-		fTypeContext->InstructionPointer(), fTypeContext->FramePointer(), size);
+		fTypeContext->GetCompilationUnit(), fTypeContext->AddressSize(),
+		fTypeContext->SubprogramEntry(), sizeValue,
+		fTypeContext->TargetInterface(), fTypeContext->InstructionPointer(),
+		fTypeContext->FramePointer(), size);
 	if (error != B_OK) {
 		TRACE_LOCALS("  failed to resolve attribute: %s\n", strerror(error));
 		return error;

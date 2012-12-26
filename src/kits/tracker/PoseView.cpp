@@ -2368,8 +2368,13 @@ BPoseView::MessageReceived(BMessage* message)
 			break;
 
 		case kIdentifyEntry:
-			IdentifySelection();
+		{
+			bool force;
+			if (message->FindBool("force", &force) != B_OK)
+				force = false;
+			IdentifySelection(force);
 			break;
+		}
 
 		case kEditItem:
 		{
@@ -6956,6 +6961,7 @@ BPoseView::_EndSelectionRect()
 		SetDrawingMode(B_OP_INVERT);
 		StrokeRect(fSelectionRectInfo.rect, B_MIXED_COLORS);
 		SetDrawingMode(B_OP_COPY);
+		fSelectionRectInfo.rect.Set(0, 0, -1, -1);
 	} else {
 		Invalidate(fSelectionRectInfo.rect);
 		fSelectionRectInfo.rect.Set(0, 0, -1, -1);
@@ -8359,9 +8365,8 @@ BPoseView::OpenParent()
 
 
 void
-BPoseView::IdentifySelection()
-{
-	bool force = (modifiers() & B_SHIFT_KEY) != 0;
+BPoseView::IdentifySelection(bool force)
+{	
 	int32 count = fSelectionList->CountItems();
 	for (int32 index = 0; index < count; index++) {
 		BPose* pose = fSelectionList->ItemAt(index);
