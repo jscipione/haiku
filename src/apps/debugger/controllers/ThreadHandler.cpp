@@ -253,7 +253,8 @@ ThreadHandler::HandleThreadAction(uint32 action)
 
 	if (stackTrace == NULL && cpuState != NULL) {
 		if (fDebuggerInterface->GetArchitecture()->CreateStackTrace(
-				fThread->GetTeam(), this, cpuState, stackTrace, 1) == B_OK) {
+				fThread->GetTeam(), this, cpuState, stackTrace, 1, false,
+				false) == B_OK) {
 			stackTraceReference.SetTo(stackTrace, true);
 		}
 	}
@@ -564,7 +565,8 @@ ThreadHandler::_HandleBreakpointHitStep(CpuState* cpuState)
 
 			if (stackTrace == NULL && cpuState != NULL) {
 				if (fDebuggerInterface->GetArchitecture()->CreateStackTrace(
-						fThread->GetTeam(), this, cpuState, stackTrace, 1)
+						fThread->GetTeam(), this, cpuState, stackTrace, 1,
+						false, false)
 						== B_OK) {
 					stackTraceReference.SetTo(stackTrace, true);
 				}
@@ -650,7 +652,8 @@ ThreadHandler::_HandleSingleStepStep(CpuState* cpuState)
 
 			if (stackTrace == NULL && cpuState != NULL) {
 				if (fDebuggerInterface->GetArchitecture()->CreateStackTrace(
-						fThread->GetTeam(), this, cpuState, stackTrace, 1)
+						fThread->GetTeam(), this, cpuState, stackTrace, 1,
+						false, false)
 						== B_OK) {
 					stackTraceReference.SetTo(stackTrace, true);
 				}
