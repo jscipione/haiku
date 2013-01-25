@@ -251,22 +251,21 @@ thin_destroot_path() {
 }
 
 # Glue together multiple binaries into a single fat binary
-# TODO: This only handles *host* fat behavior, not *target* fat handling
-fat_glue() {
+host_fat_glue() {
 	local target="$1"
 	local bins="$2"
 
 	case "${HOST_FAT_TYPE}" in
 		elf)
-			"${DESTROOT}/${prefix}/bin/fatelf-glue" "${target}" ${bins}
+			"${DESTROOT}/${prefix}/bin/fatelf-glue" -r "${target}" ${bins}
 			;;
 		macho)
-			lipo -create ${bins} -output "${target}"
+			"${HAIKU_SRC}/build/scripts/macosx_merge_lipo.pl" "${target}" ${bins}
 			;;
 		none)
 			set -- "${bins}"
 			if [ $# > 1 ]; then
-				fatal "Fat binaries are not supported on this "
+				fatal "Fat binaries are not supported on this host"
 			fi
 			cp -p "${bins}" "${target}"
 			;;
@@ -639,7 +638,7 @@ fi
 require_opt "--objroot" "${OBJROOT}"
 
 if [ -z "${COMMAND}" ]; then
-	fatal_usage "Missing required command"
+	fatal_usage "No command specified (one of build, distclean, clean)"
 	exit 1
 fi
 
