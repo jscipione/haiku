@@ -39,6 +39,7 @@ abspath() {
 	case "${path}" in
 		/*)
 			# Nothing to do, absolute path
+			eval "${var}=\"${path}\""
 			;;
 		*)
 			eval "${var}=\"${CWD}/${path}\""
@@ -130,13 +131,14 @@ run_autoconf() {
 	shift;
 
 	local srcdir="${BUILDTOOLS}/$tool"
-	local builddir="${OBJROOT}/$objdir"
 
-	safe_mkdir "${builddir}"
-	safe_push_cwd "${builddir}"
+	safe_mkdir "${objdir}"
+	safe_push_cwd "${objdir}"
 
-	"${srcdir}/configure" -C --prefix="${prefix}" $@ >> "${LOGFILE}" 2>&1
-	check_error "Configure failed"
+	if [ ! -f "${objdir}/config.log" ]; then
+		"${srcdir}/configure" -C --prefix="${prefix}" $@ >> "${LOGFILE}" 2>&1
+		check_error "Configure failed"
+	fi
 }
 
 # Extract the arch from a host triple, and then map to a canonical arch
@@ -164,7 +166,7 @@ run_cmake() {
 	local objdir="$2"
 	local prefix="$3"
 	local srcdir="${BUILDTOOLS}/$tool"
-	local builddir="${OBJROOT}/$objdir"
+	local builddir="$objdir"
 
 	safe_mkdir "${builddir}"
 	safe_push_cwd "${builddir}"
@@ -198,15 +200,14 @@ run_gmake() {
 	# Move the make args to pos $1
 	shift;
 
-	local builddir="${OBJROOT}/$objdir"
-	safe_push_cwd "${builddir}"
+	safe_push_cwd "${objdir}"
 
 	if [ -z "${DESTROOT}" ]; then
-		"${GMAKE}" ${JOBS} $@ >> "${LOGFILE}" 2>&1
+		"${GMAKE}" ${JOBS} "$@" >> "${LOGFILE}" 2>&1
 	else
 		# Ensure that our caller can override DESTDIR by placing the caller's
 		# arguments after our own.
-		"${GMAKE}" ${JOBS} "DESTDIR=${DESTROOT}" $@ >> "${LOGFILE}" 2>&1
+		"${GMAKE}" ${JOBS} "DESTDIR=${DESTROOT}" "$@" >> "${LOGFILE}" 2>&1
 	fi
 
 	check_error "${GMAKE} failed"
@@ -242,6 +243,14 @@ copy_headers() {
 	done
 }
 
+# Echo the object path to be used for building thin binaries for a given
+# host architecture
+thin_obj_path() {
+	local host_arch=$1
+
+	echo "${OBJROOT}/obj/${host_arch}/"
+}
+
 # Echo the DESTROOT path to be used for thin binaries for a given
 # host architecture
 thin_destroot_path() {
@@ -257,17 +266,20 @@ host_fat_glue() {
 
 	case "${HOST_FAT_TYPE}" in
 		elf)
-			"${DESTROOT}/${prefix}/bin/fatelf-glue" -r "${target}" ${bins}
+			echo "${DESTROOT}/${prefix}/bin/fatelf-glue" -r "${target}" ${bins}
+			exit 1
 			;;
 		macho)
-			"${HAIKU_SRC}/build/scripts/macosx_merge_lipo.pl" "${target}" ${bins}
+			echo "${HAIKU_SRC}/build/scripts/macosx_merge_lipo.pl" "${target}" ${bins}
+			exit 1
 			;;
 		none)
 			set -- "${bins}"
 			if [ $# > 1 ]; then
 				fatal "Fat binaries are not supported on this host"
 			fi
-			cp -p "${bins}" "${target}"
+			echo cp -R -p "${bins}" "${target}"
+			exit 1
 			;;
 	esac
 }
@@ -324,11 +336,12 @@ cmd_build() {
 	safe_mkdir "${binpath}"
 
 	# Native FatELF tools are required for all additional builds
+	# cmake builds are universal by default.
 	info "Building FatELF tools"
-	run_cmake "fatelf" "fatelf-objs" "${PREFIX}"
+	run_cmake "fatelf" "$(thin_obj_path universal)/fatelf" "${PREFIX}"
 
 	info "Installing FatELF tools"
-	run_gmake "fatelf-objs" install
+	run_gmake "$(thin_obj_path universal)/fatelf" install
 
 	# Create compatibility links for front-end compiler/assembler drivers
 	safe_ln "${binpath}/fatelf-gcc" "${binpath}/gcc"
@@ -356,24 +369,25 @@ cmd_build() {
 		eval set -- "${TARGETS}"
 		local binutils_target="$1"
 		local binutils_targets=`echo "${TARGETS}" | sed 's/ /,/g'`
+		local binutils_objdir="$(thin_obj_path ${host_arch})/binutils"
 
 		info "Building binutils for ${TARGETS} (host ${host_arch})"
 		touch_mkinfo "binutils"
-		run_autoconf "binutils" "binutils-objs-${host_arch}" "${PREFIX}" \
+		run_autoconf "binutils" "${binutils_objdir}" "${PREFIX}" \
 			--program-prefix="" \
 			--without-gnu-as \
 			"${host_flag}" \
 			"--host=${host_arch}" \
 			"--target=${binutils_target}" \
 			"--enable-targets=${binutils_targets}"
-		run_gmake "binutils-objs-${host_arch}" tooldir="${PREFIX}"
+		run_gmake "${binutils_objdir}" tooldir="${PREFIX}"
 
 		info "Installing binutils for ${TARGETS} (host ${host_arch})"
 
 		local dest="$(thin_destroot_path ${host_arch})"
 		safe_mkdir "${dest}"
 
-		run_gmake "binutils-objs-${host_arch}" \
+		run_gmake "${binutils_objdir}" \
 			DESTDIR="${dest}" \
 			tooldir="${PREFIX}" install
 
@@ -383,7 +397,8 @@ cmd_build() {
 			info "Building assembler for ${arch} (host ${host_arch})"
 
 			local arch_prefix="${PREFIX}/${arch}"
-			local objdir="binutils-${host_arch}-${arch}-objs"
+			local objdir="$(thin_obj_path ${host_arch})/binutils-as-${arch}"
+
 			run_autoconf "binutils" "${objdir}" "${arch_prefix}" \
 				--program-prefix="" \
 				"--host=${host_arch}" \
@@ -399,6 +414,7 @@ cmd_build() {
 	done
 	pop_path
 
+	host_fat_glue "/" "${OBJROOT}/root/"*
 
 	# Build the compiler for M:N hosts:targets
 	# Populate the object root
@@ -414,29 +430,36 @@ cmd_build() {
 
 	touch_mkinfo "gcc"
 	push_path "${target_toolpath}"
-	for arch in ${TARGETS}; do
-		info "Building compiler for ${arch}"
+	
+	for host_arch in ${HOSTS}; do
+		for arch in ${TARGETS}; do
+			info "Building compiler for ${arch}"
+			local objdir="$(thin_obj_path ${host_arch})/gcc-${arch}"
 
-		run_autoconf "gcc" "gcc-${arch}-objs" "${PREFIX}" \
-				--program-prefix="${arch}-" \
-				--target="${arch}" \
-				--with-headers="$sysinc" \
-				--with-libs="$syslib" \
-				--disable-nls \
-				--disable-shared \
-				--without-libiconv-prefix \
-				--disable-libstdcxx-pch \
-				--with-htmldir=html-docs --enable-lto \
-				--enable-frame-pointer
-		run_gmake "gcc-${arch}-objs"
+			run_autoconf "gcc" "${objdir}" "${PREFIX}" \
+					--program-prefix="${arch}-" \
+					--target="${arch}" \
+					--with-headers="$sysinc" \
+					--with-libs="$syslib" \
+					--disable-nls \
+					--disable-shared \
+					--without-libiconv-prefix \
+					--disable-libstdcxx-pch \
+					--with-htmldir=html-docs --enable-lto \
+					--enable-frame-pointer
+			run_gmake "${objdir}"
 
-		info "Installing compiler for ${arch}"
-		run_gmake "gcc-${arch}-objs" \
-			DESTDIR="${OBJROOT}/gcc-${arch}-root" \
-			install-gcc
-			# FATELF_TODO -- should only be enabled when host=target
-			# This will have to wait until we have a self-hosting toolchain
-			#install-target
+			info "Installing compiler for ${arch}"
+			local dest="$(thin_destroot_path ${host_arch})"
+			safe_mkdir "${dest}"
+
+			run_gmake "${objdir}" \
+				DESTDIR="${dest}" \
+				install-gcc
+				# FATELF_TODO -- should only be enabled when host=target
+				# This will have to wait until we have a self-hosting toolchain
+				#install-target
+		done
 	done
 	pop_path
 
@@ -470,7 +493,7 @@ main() {
 	fi
 
 	info "Logging to ${LOGFILE}"
-	safe_mkdir `dirname "${LOGFILE}"`
+	safe_mkdir "`dirname "${LOGFILE}"`"
 	echo -n '' >"${LOGFILE}"
 
 	case "${COMMAND}" in
