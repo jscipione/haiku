@@ -483,8 +483,7 @@ cmd_distclean() {
 	cmd_clean
 	if [ ! -z "${DESTROOT}" ]; then
 		info "Cleaning ${DESTROOT} ..."
-		# TODO - verify
-		echo rm -rf "${DESTROOT}"
+		rm -rf "${DESTROOT}"
 	fi
 }
 
