@@ -418,8 +418,8 @@ cmd_build() {
 	done
 	pop_path
 
-	info "Copying binutils to ${PREFIX} from destroots"
-	host_fat_glue "/" "$(thin_destroot_path binutils)/"*
+	info "Copying binutils to ${DESTROOT}/${PREFIX} from destroots"
+	host_fat_glue "${DESTROOT}/" "$(thin_destroot_path binutils)/"*
 
 	# Build the compiler for M:N hosts:targets
 	# Populate the object root
@@ -434,7 +434,7 @@ cmd_build() {
 	copy_headers "${HAIKU_SRC}/headers/posix" "$sysinc/posix"
 
 	touch_mkinfo "gcc"
-	push_path "${target_toolpath}"
+	push_path "${DESTROOT}/${target_toolpath}"
 	
 	for host_arch in ${HOSTS}; do
 		for arch in ${TARGETS}; do
@@ -468,8 +468,8 @@ cmd_build() {
 	done
 	pop_path
 
-	info "Copying gcc to ${PREFIX} from destroots"
-	host_fat_glue "/" "$(thin_destroot_path gcc)/"*
+	info "Copying gcc to ${DESTROOT}/${PREFIX} from destroots"
+	host_fat_glue "${DESTROOT}/" "$(thin_destroot_path gcc)/"*
 }
 
 # Clean the build output
