@@ -135,6 +135,7 @@ run_autoconf() {
 	safe_mkdir "${objdir}"
 	safe_push_cwd "${objdir}"
 
+	# Skip reconfiguring if a config.log already exists
 	if [ ! -f "${objdir}/config.log" ]; then
 		"${srcdir}/configure" -C --prefix="${prefix}" $@ >> "${LOGFILE}" 2>&1
 		check_error "Configure failed"
@@ -252,11 +253,17 @@ thin_obj_path() {
 }
 
 # Echo the DESTROOT path to be used for thin binaries for a given
-# host architecture
+# product and host architecture. Exclude the architecture argument to
+# echo the top-level root path
 thin_destroot_path() {
-	local host_arch=$1
+	local product="$1"
+	local host_arch="$2"
 
-	echo "${OBJROOT}/root/${host_arch}/"
+	if [ -z "${host_arch}" ]; then
+		echo "${OBJROOT}/root/${product}/"
+	else
+		echo "${OBJROOT}/root/${product}/${host_arch}"
+	fi
 }
 
 # Glue together multiple binaries into a single fat binary
@@ -266,12 +273,10 @@ host_fat_glue() {
 
 	case "${HOST_FAT_TYPE}" in
 		elf)
-			echo "${DESTROOT}/${prefix}/bin/fatelf-glue" -r "${target}" ${bins}
-			exit 1
+			"${DESTROOT}/${prefix}/bin/fatelf-glue" -r "${target}" ${bins}
 			;;
 		macho)
-			echo "${HAIKU_SRC}/build/scripts/macosx_merge_lipo.pl" "${target}" ${bins}
-			exit 1
+			"${HAIKU_SRC}/build/scripts/macosx_merge_lipo.pl" ${bins} "${target}"
 			;;
 		none)
 			set -- "${bins}"
@@ -279,7 +284,6 @@ host_fat_glue() {
 				fatal "Fat binaries are not supported on this host"
 			fi
 			echo cp -R -p "${bins}" "${target}"
-			exit 1
 			;;
 	esac
 }
@@ -384,7 +388,7 @@ cmd_build() {
 
 		info "Installing binutils for ${TARGETS} (host ${host_arch})"
 
-		local dest="$(thin_destroot_path ${host_arch})"
+		local dest="$(thin_destroot_path binutils ${host_arch})"
 		safe_mkdir "${dest}"
 
 		run_gmake "${binutils_objdir}" \
@@ -414,7 +418,8 @@ cmd_build() {
 	done
 	pop_path
 
-	host_fat_glue "/" "${OBJROOT}/root/"*
+	info "Copying binutils to ${PREFIX} from destroots"
+	host_fat_glue "/" "$(thin_destroot_path binutils)/"*
 
 	# Build the compiler for M:N hosts:targets
 	# Populate the object root
@@ -450,7 +455,7 @@ cmd_build() {
 			run_gmake "${objdir}"
 
 			info "Installing compiler for ${arch}"
-			local dest="$(thin_destroot_path ${host_arch})"
+			local dest="$(thin_destroot_path gcc ${host_arch})"
 			safe_mkdir "${dest}"
 
 			run_gmake "${objdir}" \
@@ -463,7 +468,8 @@ cmd_build() {
 	done
 	pop_path
 
-	# TODO - Merge/install compiler results
+	info "Copying gcc to ${PREFIX} from destroots"
+	host_fat_glue "/" "$(thin_destroot_path gcc)/"*
 }
 
 # Clean the build output
