@@ -26,13 +26,19 @@ options:
                               To disable building the alternative libraries
                               the variable HAIKU_ADD_ALTERNATIVE_GCC_LIBS can be
                               unset in the UserBuildConfig file.
-  --build-cross-tools-gcc4 <archs> <build tools dir>
+  --build-cross-tools <build tools dir>
+                              Assume cross compilation. <build tools dir>
+                              defines the location of the build tools sources.
+                              They will be compiled and placed in the output
+                              directory under "cross-tools". The HAIKU_* tools
+                              variables will be set accordingly.
+  --build-cross-tools-gcc4 <arch> <build tools dir>
                               Like "--build-cross-tools" just that gcc 4 will
                               be used for cross-compilation. Note, that the
                               resulting Haiku installation built with gcc 4
                               will not be binary compatible with BeOS R5.
-                              <archs> specifies the target architectures: "x86",
-                              "x86_64", "ppc", "m68k", "arm" and "mipsel".
+                              <arch> specifies the target architecture, either
+                              "x86", "x86_64", "ppc", "m68k", "arm" or "mipsel".
   --cross-tools-prefix <prefix>
                               Assume cross compilation. <prefix> should be a
                               path to the directory where the cross
