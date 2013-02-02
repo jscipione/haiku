@@ -395,6 +395,8 @@ cmd_build() {
 			DESTDIR="${dest}" \
 			tooldir="${PREFIX}" install
 
+		info "Copying binutils to ${DESTROOT}/${PREFIX} from destroots"
+		host_fat_glue "${DESTROOT}/" "$(thin_destroot_path binutils)/"*
 
 		# Build as(1) for each target
 		for arch in ${TARGETS}; do
@@ -410,16 +412,20 @@ cmd_build() {
 
 			run_gmake "${objdir}" tooldir="${arch_prefix}" all
 
-			info "Installing assembler for ${arch} (host ${host_arch})"
+			info "Installing assembler for ${arch} (host ${host_arch})"		
+			local dest="$(thin_destroot_path binutils-as-${arch} ${host_arch})"
+			safe_mkdir "${dest}"
+
 			run_gmake "${objdir}" \
 				DESTDIR="${dest}" \
 				tooldir="${arch_prefix}" install-gas
+				
+			info "Copying ${arch} assembler to ${DESTROOT}/${PREFIX} from destroots"
+			host_fat_glue "${DESTROOT}/" "$(thin_destroot_path binutils-as-${arch})/"*
 		done
 	done
 	pop_path
 
-	info "Copying binutils to ${DESTROOT}/${PREFIX} from destroots"
-	host_fat_glue "${DESTROOT}/" "$(thin_destroot_path binutils)/"*
 
 	# Build the compiler for M:N hosts:targets
 	# Populate the object root
@@ -715,6 +721,11 @@ fat_type_for_archs() {
 	echo "${type}"
 }
 
+# Set a default host value if none set
+if [ -z "${HOSTS}" ]; then
+	HOSTS="$(${BUILDTOOLS}/gcc/config.guess)"
+fi
+
 # Determine which type of fat binaries the target(s) and host(s) support
 TARGET_FAT_TYPE="$(fat_type_for_archs "${TARGETS}")"
 check_error "Unsupported target architecture specification"
@@ -723,11 +734,6 @@ HOST_FAT_TYPE="$(fat_type_for_archs "${HOSTS}")"
 check_error "Unsupported host architecture specification"
 
 LOGFILE="${OBJROOT}/build.log"
-
-# Set a default host value if none set
-if [ -z "${HOSTS}" ]; then
-	HOSTS="$(${BUILDTOOLS}/gcc/config.guess)"
-fi
 
 # Run the main routine
 main
