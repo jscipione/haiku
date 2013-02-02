@@ -1,13 +1,15 @@
 /*
- * Copyright 2002-2013 Haiku Inc. All rights reserved.
+ * Copyright 2002-2013 Haiku, Inc. All rights reserved.
  * Distributed under the terms of the MIT license.
  *
  * Authors:
- *		Erik Jaesler <ejakowatz@users.sourceforge.net>
  *		Ithamar R. Adema <ithamar@unet.nl>
- *		Ingo Weinhold <ingo_weinhold@gmx.de>
  *		Stephan Aßmus <superstippi@gmx.de>
+ *		Axel Dörfler, axeld@pinc-software.de.
+ *		Erik Jaesler <ejakowatz@users.sourceforge.net>
+ *		Ingo Weinhold <ingo_weinhold@gmx.de>
  */
+
 
 #include "MainWindow.h"
 
@@ -36,12 +38,13 @@
 #include <Volume.h>
 #include <VolumeRoster.h>
 
-#include "CreateParamsPanel.h"
+#include <tracker_private.h>
+
+#include "CreateParametersPanel.h"
 #include "DiskView.h"
-#include "InitParamsPanel.h"
+#include "InitParametersPanel.h"
 #include "PartitionList.h"
 #include "Support.h"
-#include "tracker_private.h"
 
 
 #undef B_TRANSLATION_CONTEXT
@@ -140,6 +143,38 @@ private:
 };
 
 
+class ModificationPreparer {
+public:
+	ModificationPreparer(BDiskDevice* disk)
+		:
+		fDisk(disk),
+		fModificationStatus(fDisk->PrepareModifications())
+	{
+	}
+	~ModificationPreparer()
+	{
+		if (fModificationStatus == B_OK)
+			fDisk->CancelModifications();
+	}
+	status_t ModificationStatus() const
+	{
+		return fModificationStatus;
+	}
+	status_t CommitModifications()
+	{
+		status_t ret = fDisk->CommitModifications();
+		if (ret == B_OK)
+			fModificationStatus = B_ERROR;
+
+		return ret;
+	}
+
+private:
+	BDiskDevice*	fDisk;
+	status_t		fModificationStatus;
+};
+
+
 enum {
 	MSG_MOUNT_ALL				= 'mnta',
 	MSG_MOUNT					= 'mnts',
@@ -159,10 +194,10 @@ enum {
 // #pragma mark -
 
 
-MainWindow::MainWindow(BRect frame)
+MainWindow::MainWindow()
 	:
-	BWindow(frame, B_TRANSLATE_SYSTEM_NAME("DriveSetup"), B_DOCUMENT_WINDOW,
-		B_ASYNCHRONOUS_CONTROLS | B_NOT_ZOOMABLE),
+	BWindow(BRect(50, 50, 600, 500), B_TRANSLATE_SYSTEM_NAME("DriveSetup"),
+		B_DOCUMENT_WINDOW, B_ASYNCHRONOUS_CONTROLS | B_NOT_ZOOMABLE),
 	fCurrentDisk(NULL),
 	fCurrentPartitionID(-1),
 	fSpaceIDMap()
@@ -406,17 +441,26 @@ MainWindow::ApplyDefaultSettings()
 	fListView->ResizeAllColumnsToPreferred();
 
 	// Adjust window size for convenience
-	float enlargeBy = fListView->PreferredSize().width
+	BScreen screen(this);
+	float windowWidth = Frame().Width();
+	float windowHeight = Frame().Height();
+
+	float enlargeWidthBy = fListView->PreferredSize().width
 		- fListView->Bounds().Width();
-	if (enlargeBy > 0.0f) {
-		BScreen screen(this);
-		float windowWidth = Frame().Width() + enlargeBy;
-		if (windowWidth > screen.Frame().Width() - 20.0f)
-			windowWidth = screen.Frame().Width() - 20.0f;
+	float enlargeHeightBy = fListView->PreferredSize().height
+		- fListView->Bounds().Height();
 
-		ResizeTo(windowWidth, Frame().Height());
-	}
+	if (enlargeWidthBy > 0.0f)
+		windowWidth += enlargeWidthBy;
+	if (enlargeHeightBy > 0.0f)
+		windowHeight += enlargeHeightBy;
 
+	if (windowWidth > screen.Frame().Width() - 20.0f)
+		windowWidth = screen.Frame().Width() - 20.0f;
+	if (windowHeight > screen.Frame().Height() - 20.0f)
+		windowHeight = screen.Frame().Height() - 20.0f;
+
+	ResizeTo(windowWidth, windowHeight);
 	CenterOnScreen();
 
 	Unlock();
@@ -747,38 +791,6 @@ MainWindow::_MountAll()
 // #pragma mark -
 
 
-class ModificationPreparer {
-public:
-	ModificationPreparer(BDiskDevice* disk)
-		:
-		fDisk(disk),
-		fModificationStatus(fDisk->PrepareModifications())
-	{
-	}
-	~ModificationPreparer()
-	{
-		if (fModificationStatus == B_OK)
-			fDisk->CancelModifications();
-	}
-	status_t ModificationStatus() const
-	{
-		return fModificationStatus;
-	}
-	status_t CommitModifications()
-	{
-		status_t ret = fDisk->CommitModifications();
-		if (ret == B_OK)
-			fModificationStatus = B_ERROR;
-
-		return ret;
-	}
-
-private:
-	BDiskDevice*	fDisk;
-	status_t		fModificationStatus;
-};
-
-
 void
 MainWindow::_Initialize(BDiskDevice* disk, partition_id selectedPartition,
 	const BString& diskSystemName)
@@ -871,19 +883,10 @@ MainWindow::_Initialize(BDiskDevice* disk, partition_id selectedPartition,
 
 	BString name;
 	BString parameters;
-
-	// TODO: diskSystem.IsFileSystem() seems like a better fit here?
-	if (diskSystemName == "Be File System"
-		|| diskSystemName == "NT File System") {
-		InitParamsPanel* panel = new InitParamsPanel(this, diskSystemName,
-			partition);
-		if (panel->Go(name, parameters) == GO_CANCELED)
-			return;
-	} else if (diskSystemName == "Intel Partition Map") {
-		// TODO: parameters?
-	} else if (diskSystemName == "Intel Extended Partition") {
-		// TODO: parameters?
-	}
+	InitParametersPanel* panel = new InitParametersPanel(this, diskSystemName,
+		partition);
+	if (panel->Go(name, parameters) != B_OK)
+		return;
 
 	bool supportsName = diskSystem.SupportsContentName();
 	BString validatedName(name);
@@ -1035,9 +1038,9 @@ MainWindow::_Create(BDiskDevice* disk, partition_id selectedPartition)
 	off_t offset = currentSelection->Offset();
 	off_t size = currentSelection->Size();
 
-	CreateParamsPanel* panel = new CreateParamsPanel(this, parent, offset,
-		size);
-	if (panel->Go(offset, size, name, type, parameters) == GO_CANCELED)
+	CreateParametersPanel* panel = new CreateParametersPanel(this, parent,
+		offset, size);
+	if (panel->Go(offset, size, name, type, parameters) != B_OK)
 		return;
 
 	ret = parent->ValidateCreateChild(&offset, &size, type.String(),
@@ -1066,7 +1069,7 @@ MainWindow::_Create(BDiskDevice* disk, partition_id selectedPartition)
 
 	if (ret != B_OK) {
 		_DisplayPartitionError(B_TRANSLATE("Creation of the partition has "
-			"failed."));
+			"failed."), NULL, ret);
 		return;
 	}
 
@@ -1075,7 +1078,7 @@ MainWindow::_Create(BDiskDevice* disk, partition_id selectedPartition)
 
 	if (ret != B_OK) {
 		_DisplayPartitionError(B_TRANSLATE("Failed to format the "
-			"partition. No changes have been written to disk."));
+			"partition. No changes have been written to disk."), NULL, ret);
 		return;
 	}
 
