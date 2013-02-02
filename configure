@@ -26,19 +26,13 @@ options:
                               To disable building the alternative libraries
                               the variable HAIKU_ADD_ALTERNATIVE_GCC_LIBS can be
                               unset in the UserBuildConfig file.
-  --build-cross-tools <build tools dir>
-                              Assume cross compilation. <build tools dir>
-                              defines the location of the build tools sources.
-                              They will be compiled and placed in the output
-                              directory under "cross-tools". The HAIKU_* tools
-                              variables will be set accordingly.
-  --build-cross-tools-gcc4 <arch> <build tools dir>
+  --build-cross-tools-gcc4 <archs> <build tools dir>
                               Like "--build-cross-tools" just that gcc 4 will
                               be used for cross-compilation. Note, that the
                               resulting Haiku installation built with gcc 4
                               will not be binary compatible with BeOS R5.
-                              <arch> specifies the target architecture, either
-                              "x86", "x86_64", "ppc", "m68k", "arm" or "mipsel".
+                              <archs> specifies the target architectures: "x86",
+                              "x86_64", "ppc", "m68k", "arm" and "mipsel".
   --cross-tools-prefix <prefix>
                               Assume cross compilation. <prefix> should be a
                               path to the directory where the cross
@@ -322,7 +316,7 @@ platformMachine=`uname  -m`
 targetArch=x86
 crossToolsPrefix=
 buildCrossTools=
-buildCrossToolsScript="$sourceDir/build/scripts/build_cross_tools"
+buildCrossToolsScript="$sourceDir/build/scripts/build_fatelf_cross_tools"
 buildCrossToolsMachine=
 buildCrossToolsJobs=
 
@@ -418,7 +412,6 @@ while [ $# -gt 0 ] ; do
 		--build-cross-tools-gcc4)
 			assertparams "$1" 2 $#
 			buildCrossTools=$3
-			buildCrossToolsScript="${buildCrossToolsScript}_gcc4"
 			case "$2" in
 				x86)	HAIKU_GCC_MACHINE=i586-pc-haiku;;
 				x86_64)	HAIKU_GCC_MACHINE=x86_64-unknown-haiku; targetArch=x86_64;;
@@ -519,9 +512,11 @@ mkdir -p "$buildOutputDir" || exit 1
 
 # build cross tools from sources
 if [ -n "$buildCrossTools" ]; then
-	"$buildCrossToolsScript" $buildCrossToolsMachine "$sourceDir" \
-		"$buildCrossTools" "$outputDir" $buildCrossToolsJobs || exit 1
-	crossToolsPrefix="$outputDir/cross-tools/bin/${HAIKU_GCC_MACHINE}-"
+	"$buildCrossToolsScript" --prefix "$outputDir/cross-tools" \
+	--objroot "$outputDir/cross-tools-obj" --buildtools "${buildCrossTools}" \
+	--haiku "${sourceDir}" --targets "${HAIKU_GCC_MACHINE}"  \
+	$buildCrossToolsJobs build || exit 1
+	crossToolsPrefix="$outputDir/cross-tools/bin/"
 fi
 
 # cross tools
