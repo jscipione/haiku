@@ -466,7 +466,7 @@ cmd_build() {
 
 			run_gmake "${objdir}" \
 				DESTDIR="${dest}" \
-				install-gcc
+				install
 				# FATELF_TODO -- should only be enabled when host=target
 				# This will have to wait until we have a self-hosting toolchain
 				#install-target
