@@ -476,6 +476,15 @@ cmd_build() {
 
 	info "Copying gcc to ${DESTROOT}/${PREFIX} from destroots"
 	host_fat_glue "${DESTROOT}/" "$(thin_destroot_path gcc)/"*
+	
+	for arch in ${TARGETS}; do
+	    info "Populating GCC libexec symlinks for ${arch}"
+	    for dir in "${DESTROOT}/${PREFIX}/libexec/gcc/${arch}/"*; do
+	        safe_push_cwd "${dir}"
+	        ln -sf "../../../../bin/ld" "./ld"
+	        safe_pop_cwd
+	    done
+    done
 }
 
 # Clean the build output
