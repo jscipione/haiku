@@ -51,6 +51,7 @@ All rights reserved.
 #include <Bitmap.h>
 #include <Catalog.h>
 #include <ControlLook.h>
+#include <Cursor.h>
 #include <Debug.h>
 #include <Directory.h>
 #include <FindDirectory.h>
@@ -75,8 +76,6 @@ All rights reserved.
 #include "TimeView.h"
 
 
-using std::max;
-
 #ifdef DB_ADDONS
 // Add-on support
 //
@@ -90,6 +89,7 @@ const char* const kReplicantSettingsFile = "replicants";
 const char* const kReplicantPathField = "replicant_path";
 
 float gMinimumWindowWidth = kGutter + kMinimumTrayWidth + kDragRegionWidth;
+float gMaximumWindowWidth = gMinimumWindowWidth * 2;
 
 
 static void
@@ -135,20 +135,12 @@ TReplicantTray::TReplicantTray(TBarView* parent, bool vertical)
 	fBarView(parent),
 	fShelf(new TReplicantShelf(this)),
 	fMultiRowMode(vertical),
-	fMinimumTrayWidth(kMinimumTrayWidth),
 	fAlignmentSupport(false)
 {
-	// init the minimum window width according to the logo.
-	const BBitmap* logoBitmap = AppResSet()->FindBitmap(B_MESSAGE_TYPE,
-		R_LeafLogoBitmap);
-	if (logoBitmap != NULL) {
-		gMinimumWindowWidth = std::max(gMinimumWindowWidth,
-			2 * (logoBitmap->Bounds().Width() + 8));
-	}
-	gMinimumWindowWidth = std::max(gMinimumWindowWidth,
-			be_plain_font->StringWidth("WWWWWWWWW") + 20);
 	if (vertical)
 		fMinimumTrayWidth = gMinimumWindowWidth - kGutter - kDragRegionWidth;
+	else
+		fMinimumTrayWidth = kMinimumTrayWidth;
 
 	// Create the time view
 	fTime = new TTimeView(fMinimumTrayWidth, kMaxReplicantHeight - 1.0);
@@ -182,7 +174,12 @@ TReplicantTray::AttachedToWindow()
 	fTime->SetShowTimeZone(clock->showTimeZone);
 
 	AddChild(fTime);
-	fTime->MoveTo(Bounds().right - fTime->Bounds().Width() - 1, 2);
+
+	float deltaX = Bounds().right - fTime->Bounds().Width() - 1;
+	if (fBarView->Vertical() && !fBarView->Left())
+		deltaX -= 3.0f;	// make room for resize drag region
+
+	fTime->MoveTo(deltaX, 2);
 
 	if (!((TBarApp*)be_app)->Settings()->showClock)
 		fTime->Hide();
@@ -229,8 +226,9 @@ TReplicantTray::GetPreferredSize(float* preferredWidth, float* preferredHeight)
 		int32 rowCount = (int32)(height / kMaxReplicantHeight);
 		height = kGutter + (rowCount * kMaxReplicantHeight)
 			+ ((rowCount - 1) * kIconGap) + kGutter;
-		height = max(kMinimumTrayHeight, height);
-		width = fMinimumTrayWidth;
+		height = std::max(kMinimumTrayHeight, height);
+		width = static_cast<TBarApp*>(be_app)->Settings()->width
+			- kDragRegionWidth - kGutter;
 	} else {
 		// if last replicant overruns clock then resize to accomodate
 		if (fShelf->CountReplicants() > 0) {
@@ -243,7 +241,7 @@ TReplicantTray::GetPreferredSize(float* preferredWidth, float* preferredHeight)
 		}
 
 		// this view has a fixed minimum width
-		width = max(fMinimumTrayWidth, width);
+		width = std::max(fMinimumTrayWidth, width);
 		height = kGutter + static_cast<TBarApp*>(be_app)->IconSize() + kGutter;
 	}
 
@@ -450,7 +448,7 @@ TReplicantTray::ShowHideTime()
 	bool showClock = !fTime->IsHidden(fTime);
 
 	// Update showClock setting that gets saved to disk on quit
-	((TBarApp*)be_app)->Settings()->showClock = showClock;
+	static_cast<TBarApp*>(be_app)->Settings()->showClock = showClock;
 
 	// Send a message to Time preferences telling it to update
 	BMessenger messenger("application/x-vnd.Haiku-Time");
@@ -1163,6 +1161,8 @@ BPoint
 TReplicantTray::LocationForReplicant(int32 index, float width)
 {
 	BPoint loc(kIconGap + 1, kGutter + 1);
+	if (fBarView->Vertical() && !fBarView->Left())
+		loc.x += 5;	// leave room for resize dragger
 
 	if (fMultiRowMode) {
 		// try to find free space in every row
@@ -1299,7 +1299,7 @@ TReplicantTray::SaveTimeSettings()
 }
 
 
-//	#pragma mark -
+//	#pragma mark - TDragRegion
 
 
 /*! Draggable region that is asynchronous so that dragging does not block
@@ -1644,4 +1644,157 @@ TDragRegion::SetDragRegionLocation(int32 location)
 
 	fDragLocation = location;
 	Invalidate();
+}
+
+
+//	#pragma mark - TResizeControl
+
+
+/*! Draggable region that is asynchronous so that resizing does not block.
+*/
+TResizeControl::TResizeControl(TBarView* barView)
+	:
+	BControl(BRect(0.0f, 3.0f, 0.0f, 21.0f), "", "", NULL, B_FOLLOW_NONE,
+		B_WILL_DRAW | B_FRAME_EVENTS),
+	fBarView(barView),
+	fResizeEastWestCursor(new BCursor(B_CURSOR_ID_RESIZE_EAST_WEST)),
+	fResizeEastCursor(new BCursor(B_CURSOR_ID_RESIZE_EAST)),
+	fResizeWestCursor(new BCursor(B_CURSOR_ID_RESIZE_WEST))
+{
+	SetViewCursor(fResizeEastWestCursor);
+}
+
+
+TResizeControl::~TResizeControl()
+{
+	delete fResizeEastWestCursor;
+	delete fResizeEastCursor;
+	delete fResizeWestCursor;
+}
+
+
+void
+TResizeControl::AttachedToWindow()
+{
+	BView::AttachedToWindow();
+
+	if (be_control_look != NULL)
+		SetViewUIColor(B_MENU_BACKGROUND_COLOR, 1.1f);
+	else
+		SetViewUIColor(B_MENU_BACKGROUND_COLOR);
+
+	if (!fBarView->Vertical())
+		Hide();
+}
+
+
+void
+TResizeControl::Draw(BRect updateRect)
+{
+	BRect dragRegion(updateRect);
+
+	rgb_color menuColor = ViewColor();
+	rgb_color menuHilite = menuColor;
+	if (IsTracking()) {
+		// draw drag region highlighted if tracking mouse
+		menuHilite = tint_color(menuColor, B_HIGHLIGHT_BACKGROUND_TINT);
+		SetHighColor(menuHilite);
+		FillRect(dragRegion);
+	}
+	rgb_color vdark = tint_color(menuHilite, B_DARKEN_3_TINT);
+	rgb_color light = tint_color(menuHilite, B_LIGHTEN_2_TINT);
+
+	BeginLineArray(dragRegion.IntegerHeight());
+	BPoint where;
+	where.x = floorf((dragRegion.left + dragRegion.right) / 2 + 0.5) - 1;
+	where.y = dragRegion.top + 2;
+
+	while (where.y + 1 <= dragRegion.bottom) {
+		AddLine(where, where, vdark);
+		AddLine(where + BPoint(1, 1), where + BPoint(1, 1), light);
+
+		where.y += 3;
+	}
+	EndLineArray();
+}
+
+
+void
+TResizeControl::MouseDown(BPoint where)
+{
+	uint32 buttons;
+	BPoint mouseLoc;
+
+	while (true) {
+		GetMouse(&mouseLoc, &buttons);
+		if (buttons == 0)
+			break;
+
+		if ((Window()->Flags() & B_ASYNCHRONOUS_CONTROLS) != 0) {
+			SetTracking(true);
+			SetMouseEventMask(B_POINTER_EVENTS,
+				B_NO_POINTER_HISTORY | B_LOCK_WINDOW_FOCUS);
+			Invalidate();
+			break;
+		}
+
+		snooze(25000);
+	}
+}
+
+
+void
+TResizeControl::MouseUp(BPoint where)
+{
+	if (IsTracking()) {
+		SetTracking(false);
+		be_app->SetCursor(B_CURSOR_SYSTEM_DEFAULT);
+		SetViewCursor(fResizeEastWestCursor);
+		Invalidate();
+	} else
+		BControl::MouseUp(where);
+}
+
+
+void
+TResizeControl::MouseMoved(BPoint where, uint32 code,
+	const BMessage* dragMessage)
+{
+	if (fBarView->Vertical()) {
+		if (IsResizing()) {
+			float windowWidth = Window()->Frame().Width();
+			float delta = 0.0f;
+			BPoint whereScreen = ConvertToScreen(where);
+
+			if (fBarView->Left()) {
+				delta = whereScreen.x - Window()->Frame().right;
+				if (delta > 0 && windowWidth >= gMaximumWindowWidth)
+					; // do nothing
+				else if (delta < 0 && windowWidth <= gMinimumWindowWidth)
+					; // do nothing
+				else
+					Window()->ResizeBy(delta, 0.0f);
+			} else {
+				delta = Window()->Frame().left - whereScreen.x;
+				if (delta > 0 && windowWidth >= gMaximumWindowWidth)
+					; // do nothing
+				else if (delta < 0 && windowWidth <= gMinimumWindowWidth)
+					; // do nothing
+				else {
+					Window()->MoveBy(delta, 0.0f);
+					Window()->ResizeBy(delta, 0.0f);
+				}
+			}
+
+			windowWidth = Window()->Frame().Width();
+			if (windowWidth >= gMaximumWindowWidth)
+				be_app->SetCursor(fResizeEastCursor);
+			else if (windowWidth <= gMinimumWindowWidth)
+				be_app->SetCursor(fResizeWestCursor);
+			else
+				be_app->SetCursor(fResizeEastWestCursor);
+		}
+	}
+
+	BControl::MouseMoved(where, code, dragMessage);
 }
