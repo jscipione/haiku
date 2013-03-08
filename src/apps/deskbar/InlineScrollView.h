@@ -22,6 +22,8 @@ class TInlineScrollView : public BView {
 public:
 								TInlineScrollView(BRect frame, BView* target,
 									enum orientation orientation = B_VERTICAL);
+								TInlineScrollView(BView* target,
+									enum orientation orientation = B_VERTICAL);
 	virtual						~TInlineScrollView();
 
 	virtual	void				AttachedToWindow();

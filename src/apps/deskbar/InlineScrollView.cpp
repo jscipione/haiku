@@ -378,6 +378,21 @@ TInlineScrollView::TInlineScrollView(BRect frame, BView* target,
 }
 
 
+TInlineScrollView::TInlineScrollView(BView* target,
+	enum orientation orientation)
+	:
+	BView("inline scroll view", B_WILL_DRAW),
+	fTarget(target),
+	fBeginScrollArrow(NULL),
+	fEndScrollArrow(NULL),
+	fScrollStep(kDefaultScrollStep),
+	fScrollValue(0),
+	fScrollLimit(0),
+	fOrientation(orientation)
+{
+}
+
+
 TInlineScrollView::~TInlineScrollView()
 {
 	if (fBeginScrollArrow != NULL) {

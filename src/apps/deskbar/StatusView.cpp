@@ -362,6 +362,9 @@ TReplicantTray::MessageReceived(BMessage* message)
 void
 TReplicantTray::MouseDown(BPoint where)
 {
+	if (fItemList == NULL)
+		return;
+
 #ifdef DB_ADDONS
 	if (modifiers() & B_CONTROL_KEY)
 		DumpList(fItemList);
@@ -500,6 +503,9 @@ TReplicantTray::DeleteAddOnSupport()
 {
 	_SaveSettings();
 
+	if (fItemList == NULL)
+		return;
+
 	for (int32 i = fItemList->CountItems(); i-- > 0 ;) {
 		DeskbarItemInfo* item = (DeskbarItemInfo*)fItemList->RemoveItem(i);
 		if (item) {
@@ -519,6 +525,9 @@ TReplicantTray::DeleteAddOnSupport()
 DeskbarItemInfo*
 TReplicantTray::DeskbarItemFor(node_ref& nodeRef)
 {
+	if (fItemList == NULL)
+		return NULL;
+
 	for (int32 i = fItemList->CountItems(); i-- > 0 ;) {
 		DeskbarItemInfo* item = (DeskbarItemInfo*)fItemList->ItemAt(i);
 		if (item == NULL)
@@ -688,6 +697,9 @@ TReplicantTray::LoadAddOn(BEntry* entry, int32* id, bool addToSettings)
 status_t
 TReplicantTray::AddItem(int32 id, node_ref nodeRef, BEntry& entry, bool isAddOn)
 {
+	if (fItemList == NULL)
+		return B_BAD_VALUE;
+
 	DeskbarItemInfo* item = new DeskbarItemInfo;
 	if (item == NULL)
 		return B_NO_MEMORY;
@@ -719,6 +731,9 @@ void
 TReplicantTray::UnloadAddOn(node_ref* nodeRef, dev_t* device,
 	bool which, bool removeAll)
 {
+	if (fItemList == NULL)
+		return;
+
 	for (int32 i = fItemList->CountItems(); i-- > 0 ;) {
 		DeskbarItemInfo* item = (DeskbarItemInfo*)fItemList->ItemAt(i);
 		if (!item)
@@ -782,6 +797,9 @@ TReplicantTray::MoveItem(entry_ref* ref, ino_t toDirectory)
 	// scan for a matching entry_ref and update it
 	//
 	// don't need to change node info as it does not change
+
+	if (fItemList == NULL)
+		return;
 
 	for (int32 i = fItemList->CountItems(); i-- > 0 ;) {
 		DeskbarItemInfo* item = (DeskbarItemInfo*)fItemList->ItemAt(i);

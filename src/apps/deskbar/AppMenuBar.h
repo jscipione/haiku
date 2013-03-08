@@ -32,8 +32,8 @@ brand product names are registered trademarks or trademarks of their respective
 holders.
 All rights reserved.
 */
-#ifndef EXPANDO_MENU_BAR_H
-#define EXPANDO_MENU_BAR_H
+#ifndef APP_MENU_BAR_H
+#define APP_MENU_BAR_H
 
 
 // application list
@@ -52,13 +52,14 @@ class TBarView;
 class TBarMenuTitle;
 class TTeamMenuItem;
 
-class TExpandoMenuBar : public BMenuBar {
+class TAppMenuBar : public BMenuBar {
 	public:
-		TExpandoMenuBar(TBarView* bar, const char* name, bool drawLabel = true);
+		TAppMenuBar(TBarView* bar, const char* name, bool drawLabel = true);
 
 		virtual void AttachedToWindow();
 		virtual void DetachedFromWindow();
 		virtual void Draw(BRect update);
+		virtual void DrawBackground(BRect update);
 		virtual void MessageReceived(BMessage* message);
 		virtual void MouseDown(BPoint where);
 		virtual void MouseMoved(BPoint where, uint32 code, const BMessage*);
@@ -77,7 +78,6 @@ class TExpandoMenuBar : public BMenuBar {
 
 	private:
 		static int CompareByName(const void* first, const void* second);
-		static int32 monitor_team_windows(void* arg);
 
 		void AddTeam(BList* team, BBitmap* icon, char* name, char* signature);
 		void AddTeam(team_id team, const char* signature);
@@ -98,11 +98,7 @@ class TExpandoMenuBar : public BMenuBar {
 
 		BMenuItem*			fLastMousedOverItem;
 		BMenuItem*			fLastClickItem;
-
-		static bool			sDoMonitor;
-		static thread_id	sMonThread;
-		static BLocker		sMonLocker;
 };
 
 
-#endif	// EXPANDO_MENU_BAR_H
+#endif // APP_MENU_BAR_H

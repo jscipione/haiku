@@ -44,6 +44,7 @@ All rights reserved.
 #include <Bitmap.h>
 #include <Debug.h>
 #include <Directory.h>
+#include <GroupLayout.h>
 #include <LocaleRoster.h>
 #include <NodeInfo.h>
 #include <Roster.h>
@@ -51,6 +52,8 @@ All rights reserved.
 #include <String.h>
 
 #include "icons.h"
+
+#include "AppMenuBar.h"
 #include "BarApp.h"
 #include "BarMenuBar.h"
 #include "BarWindow.h"
@@ -132,10 +135,21 @@ BarViewMessageFilter::Filter(BMessage* message, BHandler** target)
 TBarView::TBarView(BRect frame, bool vertical, bool left, bool top,
 		uint32 state, float)
 	: BView(frame, "BarView", B_FOLLOW_ALL_SIDES, B_WILL_DRAW),
-	fInlineScrollView(NULL),
-	fBarMenuBar(NULL),
-	fExpando(NULL),
+	fVerticalLayout(new BGroupLayout(B_VERTICAL, 0)),
+	fHorizontalLayout(new BGroupLayout(B_HORIZONTAL, 0)),
+	fMiniLayout(new BGroupLayout(B_VERTICAL, 0)),
+	fBarMenuBar(new TBarMenuBar(this, "BarMenuBar")),
+	fAppMenuBar(new TAppMenuBar(this, "AppMenuBar",
+		!static_cast<TBarApp*>(be_app)->Settings()->hideLabels)),
+	fExpandoMenuBar(new TExpandoMenuBar(this, "ExpandoMenuBar",
+		!static_cast<TBarApp*>(be_app)->Settings()->hideLabels)),
+	fHorizontalInlineScrollView(new TInlineScrollView(fAppMenuBar,
+		B_HORIZONTAL)),
+	fVerticalInlineScrollView(new TInlineScrollView(fExpandoMenuBar,
+		B_VERTICAL)),
 	fTrayLocation(1),
+	fReplicantTray(new TReplicantTray(this, vertical)),
+	fDragRegion(new TDragRegion(this, fReplicantTray)),
 	fVertical(vertical),
 	fTop(top),
 	fLeft(left),
@@ -148,11 +162,49 @@ TBarView::TBarView(BRect frame, bool vertical, bool left, bool top,
 	fLastDragItem(NULL),
 	fMouseFilter(NULL)
 {
-	fReplicantTray = new TReplicantTray(this, fVertical);
-	fDragRegion = new TDragRegion(this, fReplicantTray);
+	BPoint loc(B_ORIGIN);
+
+	if (fState == kMiniState) {
+		// mini mode, Deskbar menu next to team menu
+		fBarMenuBar->RemoveSeperatorItem();
+		fBarMenuBar->AddTeamMenu();
+
+		fMiniLayout->AddView(fBarMenuBar);
+		fMiniLayout->AddView(fDragRegion);
+		SetLayout(fMiniLayout);
+	} else if (fState == kExpandoState && !fVertical) {
+		fBarMenuBar->RemoveTeamMenu();
+		// shows apps to the right of bemenu
+		fBarMenuBar->AddSeperatorItem();
+		float width = floorf(width) / 2 + kSepItemWidth;
+
+		fBarMenuBar->SmartResize(width, -1);
+		loc = Bounds().LeftTop();
+
+		fHorizontalLayout->AddView(fBarMenuBar);
+		fHorizontalLayout->AddView(fHorizontalInlineScrollView);
+		fHorizontalLayout->AddView(fDragRegion);
+		SetLayout(fHorizontalLayout);
+	} else {
+		// Vertical expando or full state
+		fBarMenuBar->RemoveTeamMenu();
+		fBarMenuBar->RemoveSeperatorItem();
+		// TODO: Magic constants need explanation
+		float width = 8 + 16 + 8;
+		fBarMenuBar->SmartResize(width, -1);
+		loc = Bounds().LeftTop();
+
+		fBarMenuBar->RemoveTeamMenu();
+		fBarMenuBar->RemoveSeperatorItem();
+		width += 1;
+
+		fVerticalLayout->AddView(fBarMenuBar);
+		fVerticalLayout->AddView(fDragRegion);
+		fVerticalLayout->AddView(fVerticalInlineScrollView);
+		SetLayout(fVerticalLayout);
+	}
+
 	fDragRegion->AddChild(fReplicantTray);
-	if (fTrayLocation != 0)
-		AddChild(fDragRegion);
 }
 
 
@@ -211,7 +263,7 @@ TBarView::Draw(BRect)
 
 	if (fVertical && fState == kExpandoState) {
 		SetHighColor(hilite);
-		BRect frame(fExpando->Frame());
+		BRect frame(fExpandoMenuBar->Frame());
 		StrokeLine(BPoint(frame.left, frame.top - 1),
 			BPoint(frame.right, frame.top -1));
 	}
@@ -271,7 +323,7 @@ TBarView::MouseMoved(BPoint where, uint32 transit, const BMessage* dragMessage)
 	if (transit == B_ENTERED_VIEW && EventMask() == 0)
 		SetEventMask(B_POINTER_EVENTS, B_NO_POINTER_HISTORY);
 
-	desk_settings* settings = ((TBarApp*)be_app)->Settings();
+	desk_settings* settings = static_cast<TBarApp*>(be_app)->Settings();
 	bool alwaysOnTop = settings->alwaysOnTop;
 	bool autoRaise = settings->autoRaise;
 	bool autoHide = settings->autoHide;
@@ -338,7 +390,7 @@ TBarView::MouseDown(BPoint where)
 		}
 	} else {
 		// hide deskbar if required
-		desk_settings* settings = ((TBarApp*)be_app)->Settings();
+		desk_settings* settings = static_cast<TBarApp*>(be_app)->Settings();
 		bool alwaysOnTop = settings->alwaysOnTop;
 		bool autoRaise = settings->autoRaise;
 		bool autoHide = settings->autoHide;
@@ -365,23 +417,15 @@ TBarView::PlaceDeskbarMenu()
 			+ static_cast<TBarApp*>(be_app)->IconSize() + 4;
 	}
 
-	if (fBarMenuBar == NULL) {
-		// create the Be menu
-		fBarMenuBar = new TBarMenuBar(this, menuFrame, "BarMenuBar");
-		AddChild(fBarMenuBar);
-	} else
-		fBarMenuBar->SmartResize(-1, -1);
+	fBarMenuBar->SmartResize(-1, -1);
 
 	float width = sMinimumWindowWidth;
-	BPoint loc(B_ORIGIN);
-
 	if (fState == kFullState) {
 		fBarMenuBar->RemoveTeamMenu();
 		fBarMenuBar->RemoveSeperatorItem();
 		// TODO: Magic constants need explanation
 		width = 8 + 16 + 8;
 		fBarMenuBar->SmartResize(width, menuFrame.Height());
-		loc = Bounds().LeftTop();
 	} else if (fState == kExpandoState) {
 		fBarMenuBar->RemoveTeamMenu();
 		if (fVertical) {
@@ -393,7 +437,6 @@ TBarView::PlaceDeskbarMenu()
 			fBarMenuBar->AddSeperatorItem();
 			width = floorf(width) / 2 + kSepItemWidth;
 		}
-		loc = Bounds().LeftTop();
 	} else {
 		// mini mode, DeskbarMenu next to team menu
 		fBarMenuBar->RemoveSeperatorItem();
@@ -401,7 +444,6 @@ TBarView::PlaceDeskbarMenu()
 	}
 
 	fBarMenuBar->SmartResize(width, menuFrame.Height());
-	fBarMenuBar->MoveTo(loc);
 }
 
 
@@ -452,18 +494,6 @@ TBarView::PlaceApplicationBar()
 {
 	SaveExpandedItems();
 
-	if (fInlineScrollView != NULL) {
-		fInlineScrollView->DetachScrollers();
-		fInlineScrollView->RemoveSelf();
-		delete fInlineScrollView;
-		fInlineScrollView = NULL;
-	}
-
-	if (fExpando != NULL) {
-		delete fExpando;
-		fExpando = NULL;
-	}
-
 	BRect screenFrame = (BScreen(Window())).Frame();
 	if (fState == kMiniState) {
 		SizeWindow(screenFrame);
@@ -508,21 +538,12 @@ TBarView::PlaceApplicationBar()
 		menuScrollFrame = expandoFrame;
 	}
 
-	bool hideLabels = ((TBarApp*)be_app)->Settings()->hideLabels;
-
-	fExpando = new TExpandoMenuBar(this, expandoFrame, "ExpandoMenuBar",
-		fVertical, !hideLabels && fState != kFullState);
-
-	fInlineScrollView = new TInlineScrollView(menuScrollFrame, fExpando,
-		fVertical ? B_VERTICAL : B_HORIZONTAL);
-	AddChild(fInlineScrollView);
-
 	if (fVertical)
 		ExpandItems();
 
 	SizeWindow(screenFrame);
 	PositionWindow(screenFrame);
-	fExpando->DoLayout();
+	fExpandoMenuBar->DoLayout();
 		// force menu to autosize
 	CheckForScrolling();
 
@@ -545,7 +566,7 @@ TBarView::GetPreferredWindowSize(BRect screenFrame, float* width, float* height)
 
 		if (fState == kExpandoState && !fVertical) {
 			// top or bottom, full
-			fExpando->CheckItemSizes(0);
+			fExpandoMenuBar->CheckItemSizes(0);
 			windowWidth = screenFrame.Width();
 		} else
 			windowWidth = kHiddenDimension;
@@ -561,10 +582,10 @@ TBarView::GetPreferredWindowSize(BRect screenFrame, float* width, float* height)
 				else
 					windowHeight = fBarMenuBar->Frame().bottom + 1;
 
-				windowHeight += fExpando->Bounds().Height();
+				windowHeight += fExpandoMenuBar->Bounds().Height();
 			} else {
 				// top or bottom, full
-				fExpando->CheckItemSizes(0);
+				fExpandoMenuBar->CheckItemSizes(0);
 				windowHeight = iconSize + 4;
 				windowWidth = screenFrame.Width();
 			}
@@ -617,11 +638,19 @@ TBarView::PositionWindow(BRect screenFrame)
 void
 TBarView::CheckForScrolling()
 {
-	if (fInlineScrollView != NULL && fExpando != NULL) {
-		if (fExpando->CheckForSizeOverrun())
-			fInlineScrollView->AttachScrollers();
+	if (fState != kExpandoState)
+		return;
+
+	if (fVertical) {
+		if (fExpandoMenuBar->CheckForSizeOverrun())
+			fVerticalInlineScrollView->AttachScrollers();
 		else
-			fInlineScrollView->DetachScrollers();
+			fVerticalInlineScrollView->DetachScrollers();
+	} else {
+		if (fAppMenuBar->CheckForSizeOverrun())
+			fHorizontalInlineScrollView->AttachScrollers();
+		else
+			fHorizontalInlineScrollView->DetachScrollers();
 	}
 }
 
@@ -668,14 +697,14 @@ TBarView::ChangeState(int32 state, bool vertical, bool left, bool top,
 void
 TBarView::SaveExpandedItems()
 {
-	if (fExpando == NULL || fExpando->CountItems() <= 0)
+	if (fExpandoMenuBar == NULL || fExpandoMenuBar->CountItems() <= 0)
 		return;
 
 	// Get a list of the signatures of expanded apps. Can't use
 	// team_id because there can be more than one team per application
-	for (int32 i = 0; i < fExpando->CountItems(); i++) {
+	for (int32 i = 0; i < fExpandoMenuBar->CountItems(); i++) {
 		TTeamMenuItem* teamItem
-			= dynamic_cast<TTeamMenuItem*>(fExpando->ItemAt(i));
+			= dynamic_cast<TTeamMenuItem*>(fExpandoMenuBar->ItemAt(i));
 
 		if (teamItem != NULL && teamItem->IsExpanded())
 			AddExpandedItem(teamItem->Signature());
@@ -695,20 +724,20 @@ TBarView::RemoveExpandedItems()
 void
 TBarView::ExpandItems()
 {
-	if (fExpando == NULL || !fVertical || fState != kExpandoState
+	if (fExpandoMenuBar == NULL || !fVertical || fState != kExpandoState
 		|| !static_cast<TBarApp*>(be_app)->Settings()->superExpando
 		|| fExpandedItems.CountItems() <= 0)
 		return;
 
 	// Start at the 'bottom' of the list working up.
 	// Prevents being thrown off by expanding items.
-	for (int32 i = fExpando->CountItems() - 1; i >= 0; i--) {
+	for (int32 i = fExpandoMenuBar->CountItems() - 1; i >= 0; i--) {
 		TTeamMenuItem* teamItem
-			= dynamic_cast<TTeamMenuItem*>(fExpando->ItemAt(i));
+			= dynamic_cast<TTeamMenuItem*>(fExpandoMenuBar->ItemAt(i));
 
 		if (teamItem != NULL) {
 			// Start at the 'bottom' of the fExpandedItems list working up
-			// matching the order of the fExpando list in the outer loop.
+			// matching the order of the fExpandoMenuBar list in the outer loop.
 			for (int32 j = fExpandedItems.CountItems() - 1; j >= 0; j--) {
 				BString* itemSig =
 					static_cast<BString*>(fExpandedItems.ItemAt(j));
@@ -739,7 +768,7 @@ TBarView::_ChangeState(BMessage* message)
 	bool top = message->FindBool("top");
 
 	bool vertSwap = (fVertical != vertical);
-	bool leftSwap = (fLeft != left);
+	//bool leftSwap = (fLeft != left);
 	bool stateChanged = (fState != state);
 
 	fState = state;
@@ -753,8 +782,23 @@ TBarView::_ChangeState(BMessage* message)
 		be_app->PostMessage(kStateChanged);
 
 	PlaceDeskbarMenu();
-	PlaceTray(vertSwap, leftSwap);
-	PlaceApplicationBar();
+
+	if (fState == kMiniState)
+		SetLayout(fMiniLayout);
+	else if (fState == kExpandoState && !fVertical)
+		SetLayout(fHorizontalLayout);
+	else
+		SetLayout(fVerticalLayout);
+
+	BRect screenFrame = (BScreen(Window())).Frame();
+	SizeWindow(screenFrame);
+	PositionWindow(screenFrame);
+	Window()->UpdateIfNeeded();
+	Invalidate();
+
+	//PlaceDeskbarMenu();
+	//PlaceTray(vertSwap, leftSwap);
+	//PlaceApplicationBar();
 }
 
 
@@ -847,10 +891,10 @@ TBarView::DragStart()
 	uint32 buttons;
 	GetMouse(&loc, &buttons);
 
-	if (fExpando && fExpando->Frame().Contains(loc)) {
+	if (fExpandoMenuBar && fExpandoMenuBar->Frame().Contains(loc)) {
 		ConvertToScreen(&loc);
-		BPoint expandoLocation = fExpando->ConvertFromScreen(loc);
-		TTeamMenuItem* item = fExpando->TeamItemAtPoint(expandoLocation);
+		BPoint expandoLocation = fExpandoMenuBar->ConvertFromScreen(loc);
+		TTeamMenuItem* item = fExpandoMenuBar->TeamItemAtPoint(expandoLocation);
 
 		if (fLastDragItem)
 			init_tracking_hook(fLastDragItem, NULL, NULL);
@@ -940,7 +984,7 @@ TBarView::DragStop(bool full)
 	if (!Dragging())
 		return;
 
-	if (fExpando) {
+	if (fExpandoMenuBar) {
 		if (fLastDragItem) {
 			init_tracking_hook(fLastDragItem, NULL, NULL);
 			fLastDragItem = NULL;

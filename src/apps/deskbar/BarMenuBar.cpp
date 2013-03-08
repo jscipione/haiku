@@ -53,8 +53,9 @@ All rights reserved.
 
 const float kSepItemWidth = 5.0f;
 
-TBarMenuBar::TBarMenuBar(TBarView* bar, BRect frame, const char* name)
-	: BMenuBar(frame, name, B_FOLLOW_NONE, B_ITEMS_IN_ROW, false),
+TBarMenuBar::TBarMenuBar(TBarView* bar, const char* name)
+	:
+	BMenuBar(name, B_ITEMS_IN_ROW),
 	fBarView(bar),
 	fAppListMenuItem(NULL),
 	fSeparatorItem(NULL)
@@ -66,8 +67,7 @@ TBarMenuBar::TBarMenuBar(TBarView* bar, BRect frame, const char* name)
 
 	const BBitmap* logoBitmap = AppResSet()->FindBitmap(B_MESSAGE_TYPE,
 		R_LeafLogoBitmap);
-	fDeskbarMenuItem = new TBarMenuTitle(frame.Width(), frame.Height(),
-		logoBitmap, beMenu);
+	fDeskbarMenuItem = new TBarMenuTitle(0, 0, logoBitmap, beMenu);
 	AddItem(fDeskbarMenuItem);
 }
 
@@ -191,7 +191,6 @@ TBarMenuBar::RemoveSeperatorItem()
 void
 TBarMenuBar::Draw(BRect updateRect)
 {
-	// want to skip the fancy BMenuBar drawing code.
 	BMenu::Draw(updateRect);
 }
 

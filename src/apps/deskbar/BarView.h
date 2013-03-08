@@ -65,7 +65,9 @@ const float kStatusHeight = 22.0f;
 const float kHiddenDimension = 1.0f;
 const float kMaxPreventHidingDist = 80.0f;
 
+class BGroupLayout;
 class BShelf;
+class TAppMenuBar;
 class TBarMenuBar;
 class TExpandoMenuBar;
 class TReplicantTray;
@@ -150,8 +152,9 @@ class TBarView : public BView {
 
 		void CheckForScrolling();
 
-		TExpandoMenuBar* ExpandoMenuBar() const;
 		TBarMenuBar* BarMenuBar() const;
+		TAppMenuBar* AppMenuBar() const;
+		TExpandoMenuBar* ExpandoMenuBar() const;
 		TDragRegion* DragRegion() const { return fDragRegion; }
 		TReplicantTray* ReplicantTray() const { return fReplicantTray; }
 
@@ -170,13 +173,19 @@ class TBarView : public BView {
 		void ExpandItems();
 		void _ChangeState(BMessage* message);
 
-		TInlineScrollView* fInlineScrollView;
+		BGroupLayout* fVerticalLayout;
+		BGroupLayout* fHorizontalLayout;
+		BGroupLayout* fMiniLayout;
+
 		TBarMenuBar* fBarMenuBar;
-		TExpandoMenuBar* fExpando;
+		TAppMenuBar* fAppMenuBar;
+		TExpandoMenuBar* fExpandoMenuBar;
+		TInlineScrollView* fHorizontalInlineScrollView;
+		TInlineScrollView* fVerticalInlineScrollView;
 
 		int32 fTrayLocation;
-		TDragRegion* fDragRegion;
 		TReplicantTray* fReplicantTray;
+		TDragRegion* fDragRegion;
 
 		bool fVertical : 1;
 		bool fTop : 1;
@@ -199,17 +208,24 @@ class TBarView : public BView {
 };
 
 
-inline TExpandoMenuBar*
-TBarView::ExpandoMenuBar() const
-{
-	return fExpando;
-}
-
-
 inline TBarMenuBar*
 TBarView::BarMenuBar() const
 {
 	return fBarMenuBar;
+}
+
+
+inline TAppMenuBar*
+TBarView::AppMenuBar() const
+{
+	return fAppMenuBar;
+}
+
+
+inline TExpandoMenuBar*
+TBarView::ExpandoMenuBar() const
+{
+	return fExpandoMenuBar;
 }
 
 

@@ -50,7 +50,7 @@ All rights reserved.
 
 class TBarMenuBar : public BMenuBar {
 	public:
-		TBarMenuBar(TBarView* bar, BRect frame, const char* name);
+		TBarMenuBar(TBarView* bar, const char* name);
 		virtual ~TBarMenuBar();
 
 		virtual void MouseMoved(BPoint where, uint32 code,

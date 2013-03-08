@@ -19,6 +19,7 @@ targetSource = CalendarMenuWindow.cpp ;
 SubDirC++Flags -D_SHOW_CALENDAR_MENU_WINDOW=1 -DMOUNT_MENU_IN_DESKBAR=1 ;
 
 Application Deskbar :
+	AppMenuBar.cpp
 	BarApp.cpp
 	BarMenuBar.cpp
 	BarMenuTitle.cpp
