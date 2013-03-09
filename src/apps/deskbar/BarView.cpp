@@ -163,51 +163,6 @@ TBarView::TBarView(bool vertical, bool left, bool top, uint32 state,
 	fLastDragItem(NULL),
 	fMouseFilter(NULL)
 {
-	BPoint loc(B_ORIGIN);
-
-	if (fState == kMiniState) {
-		SetLayout(fMiniLayout);
-
-		// mini mode, Deskbar menu next to team menu
-		fBarMenuBar->RemoveSeperatorItem();
-		fBarMenuBar->AddTeamMenu();
-
-		fMiniLayout->AddView(fBarMenuBar);
-		fMiniLayout->AddView(fDragRegion);
-	} else if (fState == kExpandoState && !fVertical) {
-		SetLayout(fHorizontalLayout);
-
-		fBarMenuBar->RemoveTeamMenu();
-		// shows apps to the right of bemenu
-		fBarMenuBar->AddSeperatorItem();
-		float width = floorf(width) / 2 + kSepItemWidth;
-
-		fBarMenuBar->SmartResize(width, -1);
-		loc = Bounds().LeftTop();
-
-		fHorizontalLayout->AddView(fBarMenuBar);
-		fHorizontalLayout->AddView(fHorizontalInlineScrollView);
-		fHorizontalLayout->AddView(fDragRegion);
-	} else {
-		SetLayout(fVerticalLayout);
-
-		// Vertical expando or full state
-		fBarMenuBar->RemoveTeamMenu();
-		fBarMenuBar->RemoveSeperatorItem();
-		// TODO: Magic constants need explanation
-		float width = 8 + 16 + 8;
-		fBarMenuBar->SmartResize(width, -1);
-		loc = Bounds().LeftTop();
-
-		fBarMenuBar->RemoveTeamMenu();
-		fBarMenuBar->RemoveSeperatorItem();
-		width += 1;
-
-		fVerticalLayout->AddView(fBarMenuBar);
-		fVerticalLayout->AddView(fDragRegion);
-		fVerticalLayout->AddView(fVerticalInlineScrollView);
-	}
-
 	fDragRegion->AddChild(fReplicantTray);
 }
 
@@ -785,14 +740,46 @@ TBarView::_ChangeState(BMessage* message)
 	if (stateChanged || vertSwap)
 		be_app->PostMessage(kStateChanged);
 
-	PlaceDeskbarMenu();
-
-	if (fState == kMiniState)
+	if (fState == kMiniState) {
 		SetLayout(fMiniLayout);
-	else if (fState == kExpandoState && !fVertical)
+
+		// mini mode, Deskbar menu next to team menu
+		fBarMenuBar->RemoveSeperatorItem();
+		fBarMenuBar->AddTeamMenu();
+
+		fMiniLayout->AddView(fBarMenuBar);
+		fMiniLayout->AddView(fDragRegion);
+	} else if (fState == kExpandoState && !fVertical) {
 		SetLayout(fHorizontalLayout);
-	else
+
+		fBarMenuBar->RemoveTeamMenu();
+		// shows apps to the right of bemenu
+		fBarMenuBar->AddSeperatorItem();
+		float width = floorf(width) / 2 + kSepItemWidth;
+
+		fBarMenuBar->SmartResize(width, -1);
+
+		fHorizontalLayout->AddView(fBarMenuBar);
+		fHorizontalLayout->AddView(fHorizontalInlineScrollView);
+		fHorizontalLayout->AddView(fDragRegion);
+	} else {
 		SetLayout(fVerticalLayout);
+
+		// Vertical expando or full state
+		fBarMenuBar->RemoveTeamMenu();
+		fBarMenuBar->RemoveSeperatorItem();
+		// TODO: Magic constants need explanation
+		float width = 8 + 16 + 8;
+		fBarMenuBar->SmartResize(width, -1);
+
+		fBarMenuBar->RemoveTeamMenu();
+		fBarMenuBar->RemoveSeperatorItem();
+		width += 1;
+
+		fVerticalLayout->AddView(fBarMenuBar);
+		fVerticalLayout->AddView(fDragRegion);
+		fVerticalLayout->AddView(fVerticalInlineScrollView);
+	}
 
 	BRect screenFrame = (BScreen(Window())).Frame();
 	SizeWindow(screenFrame);
