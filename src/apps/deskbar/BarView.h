@@ -78,8 +78,8 @@ class TTeamMenuItem;
 
 class TBarView : public BView {
 	public:
-		TBarView(BRect frame, bool vertical, bool left, bool top,
-			uint32 state, float width);
+		TBarView(bool vertical, bool left, bool top, uint32 state,
+			float width);
 		~TBarView();
 
 		virtual void AttachedToWindow();

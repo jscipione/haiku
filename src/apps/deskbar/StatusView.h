@@ -62,6 +62,8 @@ const float kMinimumTrayWidth = kIconGap
 const float kMinimumTrayHeight = kGutter + kMaxReplicantHeight + kGutter;
 
 extern float sMinimumWindowWidth;
+extern float sMaximumWindowWidth;
+
 
 #ifdef DB_ADDONS
 struct DeskbarItemInfo {

@@ -62,6 +62,7 @@ All rights reserved.
 #include <PopUpMenu.h>
 #include <Roster.h>
 #include <Screen.h>
+#include <Size.h>
 #include <Volume.h>
 #include <VolumeRoster.h>
 #include <Window.h>
@@ -90,6 +91,7 @@ const char* const kReplicantSettingsFile = "Deskbar_replicants";
 const char* const kReplicantPathField = "replicant_path";
 
 float sMinimumWindowWidth = kGutter + kMinimumTrayWidth + kDragRegionWidth;
+float sMaximumWindowWidth = kGutter + kMinimumTrayWidth + kDragRegionWidth * 2;
 
 
 static void
@@ -129,8 +131,7 @@ DumpList(BList* itemlist)
 
 TReplicantTray::TReplicantTray(TBarView* parent, bool vertical)
 	:
-	BView(BRect(0, 0, 1, 1), "Status", B_FOLLOW_LEFT | B_FOLLOW_TOP,
-		B_WILL_DRAW | B_FRAME_EVENTS),
+	BView("Status", B_WILL_DRAW | B_FRAME_EVENTS),
 	fTime(NULL),
 	fBarView(parent),
 	fShelf(new TReplicantShelf(this)),
@@ -138,6 +139,9 @@ TReplicantTray::TReplicantTray(TBarView* parent, bool vertical)
 	fMinimumTrayWidth(kMinimumTrayWidth),
 	fAlignmentSupport(false)
 {
+	SetExplicitMinSize(BSize(sMinimumWindowWidth, kStatusHeight));
+	SetExplicitMaxSize(BSize(sMaximumWindowWidth, kStatusHeight));
+
 	// init the minimum window width according to the logo.
 	const BBitmap* logoBitmap = AppResSet()->FindBitmap(B_MESSAGE_TYPE,
 		R_LeafLogoBitmap);

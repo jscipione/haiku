@@ -41,6 +41,7 @@ All rights reserved.
 #include <Bitmap.h>
 #include <Debug.h>
 #include <NodeInfo.h>
+#include <Size.h>
 
 #include "icons.h"
 
@@ -48,6 +49,7 @@ All rights reserved.
 #include "DeskbarMenu.h"
 #include "DeskbarUtils.h"
 #include "ResourceSet.h"
+#include "StatusView.h"
 #include "TeamMenu.h"
 
 
@@ -61,13 +63,16 @@ TBarMenuBar::TBarMenuBar(TBarView* bar, const char* name)
 	fSeparatorItem(NULL)
 {
 	SetItemMargins(0.0f, 0.0f, 0.0f, 0.0f);
+	SetExplicitMinSize(BSize(sMinimumWindowWidth, kMenuBarHeight));
+	SetExplicitMaxSize(BSize(sMaximumWindowWidth, kMenuBarHeight));
 
 	TDeskbarMenu* beMenu = new TDeskbarMenu(bar);
 	TBarWindow::SetDeskbarMenu(beMenu);
 
 	const BBitmap* logoBitmap = AppResSet()->FindBitmap(B_MESSAGE_TYPE,
 		R_LeafLogoBitmap);
-	fDeskbarMenuItem = new TBarMenuTitle(0, 0, logoBitmap, beMenu);
+	fDeskbarMenuItem = new TBarMenuTitle(sMinimumWindowWidth, kMenuBarHeight,
+		logoBitmap, beMenu);
 	AddItem(fDeskbarMenuItem);
 }
 

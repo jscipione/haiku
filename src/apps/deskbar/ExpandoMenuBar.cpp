@@ -45,6 +45,7 @@ All rights reserved.
 #include <NodeInfo.h>
 #include <Roster.h>
 #include <Screen.h>
+#include <Size.h>
 
 #include "icons.h"
 
@@ -90,7 +91,9 @@ TExpandoMenuBar::TExpandoMenuBar(TBarView* bar, const char* name,
 {
 	SetItemMargins(0.0f, 0.0f, 0.0f, 0.0f);
 	SetFont(be_plain_font);
-	SetMaxContentWidth(sMinimumWindowWidth);
+	SetMaxContentWidth(sMaximumWindowWidth);
+	SetExplicitMinSize(BSize(sMinimumWindowWidth, kStatusHeight));
+	SetExplicitMaxSize(BSize(sMaximumWindowWidth, B_SIZE_UNLIMITED));
 }
 
 

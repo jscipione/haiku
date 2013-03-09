@@ -132,12 +132,13 @@ BarViewMessageFilter::Filter(BMessage* message, BHandler** target)
 }
 
 
-TBarView::TBarView(BRect frame, bool vertical, bool left, bool top,
-		uint32 state, float)
-	: BView(frame, "BarView", B_FOLLOW_ALL_SIDES, B_WILL_DRAW),
-	fVerticalLayout(new BGroupLayout(B_VERTICAL, 0)),
-	fHorizontalLayout(new BGroupLayout(B_HORIZONTAL, 0)),
-	fMiniLayout(new BGroupLayout(B_VERTICAL, 0)),
+TBarView::TBarView(bool vertical, bool left, bool top, uint32 state,
+	float)
+	:
+	BView("BarView", B_WILL_DRAW),
+	fVerticalLayout(new BGroupLayout(B_VERTICAL)),
+	fHorizontalLayout(new BGroupLayout(B_HORIZONTAL)),
+	fMiniLayout(new BGroupLayout(B_VERTICAL)),
 	fBarMenuBar(new TBarMenuBar(this, "BarMenuBar")),
 	fAppMenuBar(new TAppMenuBar(this, "AppMenuBar",
 		!static_cast<TBarApp*>(be_app)->Settings()->hideLabels)),
@@ -165,14 +166,17 @@ TBarView::TBarView(BRect frame, bool vertical, bool left, bool top,
 	BPoint loc(B_ORIGIN);
 
 	if (fState == kMiniState) {
+		SetLayout(fMiniLayout);
+
 		// mini mode, Deskbar menu next to team menu
 		fBarMenuBar->RemoveSeperatorItem();
 		fBarMenuBar->AddTeamMenu();
 
 		fMiniLayout->AddView(fBarMenuBar);
 		fMiniLayout->AddView(fDragRegion);
-		SetLayout(fMiniLayout);
 	} else if (fState == kExpandoState && !fVertical) {
+		SetLayout(fHorizontalLayout);
+
 		fBarMenuBar->RemoveTeamMenu();
 		// shows apps to the right of bemenu
 		fBarMenuBar->AddSeperatorItem();
@@ -184,8 +188,9 @@ TBarView::TBarView(BRect frame, bool vertical, bool left, bool top,
 		fHorizontalLayout->AddView(fBarMenuBar);
 		fHorizontalLayout->AddView(fHorizontalInlineScrollView);
 		fHorizontalLayout->AddView(fDragRegion);
-		SetLayout(fHorizontalLayout);
 	} else {
+		SetLayout(fVerticalLayout);
+
 		// Vertical expando or full state
 		fBarMenuBar->RemoveTeamMenu();
 		fBarMenuBar->RemoveSeperatorItem();
@@ -201,7 +206,6 @@ TBarView::TBarView(BRect frame, bool vertical, bool left, bool top,
 		fVerticalLayout->AddView(fBarMenuBar);
 		fVerticalLayout->AddView(fDragRegion);
 		fVerticalLayout->AddView(fVerticalInlineScrollView);
-		SetLayout(fVerticalLayout);
 	}
 
 	fDragRegion->AddChild(fReplicantTray);
