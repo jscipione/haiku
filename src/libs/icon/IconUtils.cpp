@@ -19,6 +19,8 @@
 
 #include <Bitmap.h>
 #include <Node.h>
+#include <NodeInfo.h>
+#include <String.h>
 #include <TypeConstants.h>
 
 #include "AutoDeleter.h"
@@ -297,6 +299,31 @@ scale4x(const uint8* srcBits, uint8* dstBits, int32 srcWidth, int32 srcHeight,
 }
 
 
+//	#pragma mark - IsEligibleForThumbnail()
+
+
+bool
+BIconUtils::IsEligibleForThumbnail(BNode* node)
+{
+	if (node == NULL)
+		return false;
+
+	BNodeInfo nodeInfo(node);
+	char type[B_MIME_TYPE_LENGTH];
+	if (nodeInfo.GetType(type) != B_OK)
+		return false;
+
+	return strcasecmp(type, "image/bmp") == 0
+		|| strcasecmp(type, "image/icns") == 0
+		|| strcasecmp(type, "image/ico") == 0
+		|| strcasecmp(type, "image/gif") == 0
+		|| strcasecmp(type, "image/jp2") == 0
+		|| strcasecmp(type, "image/jpeg") == 0
+		|| strcasecmp(type, "image/png") == 0
+		|| strcasecmp(type, "image/tiff") == 0;
+}
+
+
 //	#pragma mark - GetIcon()
 
 
@@ -315,6 +342,23 @@ BIconUtils::GetIcon(BNode* node, const char* vectorIconAttrName,
 	result = icon->InitCheck();
 	if (result != B_OK)
 		return result;
+
+	// if it's an image look for a thumbnail
+	if (which >= B_LARGE_ICON && BIconUtils::IsEligibleForThumbnail(node)) {
+		BString attrName("Thumbnail:");
+		attrName << which;
+		const char* attrNameString = attrName.String();
+		type_code attrType = B_RGB_32_BIT_TYPE;
+		attr_info attrInfo;
+		if (node->GetAttrInfo(attrNameString, &attrInfo) == B_OK
+			&& attrInfo.type == attrType
+			&& attrInfo.size == icon->BitsLength()) {
+			ssize_t bytesRead = node->ReadAttr(attrNameString, attrType, 0,
+				icon->Bits(), icon->BitsLength());
+			if (bytesRead == icon->BitsLength())
+				return B_OK;
+		}
+	}
 
 	switch (icon->ColorSpace()) {
 		case B_RGBA32:

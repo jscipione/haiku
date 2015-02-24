@@ -19,6 +19,8 @@ class BIconUtils {
 			BIconUtils&			operator=(const BIconUtils&);
 
 public:
+	static	bool				IsEligibleForThumbnail(BNode* node);
+
 	static	status_t			GetIcon(BNode* node,
 									const char* vectorIconAttrName,
 									const char* smallIconAttrName,

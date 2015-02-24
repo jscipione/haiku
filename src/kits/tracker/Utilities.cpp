@@ -49,11 +49,17 @@ All rights reserved.
 #include <Font.h>
 #include <IconUtils.h>
 #include <MenuItem.h>
+#include <Mime.h>
+#include <Node.h>
+#include <NodeInfo.h>
 #include <OS.h>
 #include <PopUpMenu.h>
 #include <Region.h>
 #include <StorageDefs.h>
 #include <TextView.h>
+#include <TranslatorRoster.h>
+#include <TypeConstants.h>
+#include <View.h>
 #include <Volume.h>
 #include <VolumeRoster.h>
 #include <Window.h>
@@ -1475,8 +1481,112 @@ GetAppIconFromAttr(BFile* file, BBitmap* icon, icon_size which)
 status_t
 GetFileIconFromAttr(BNode* node, BBitmap* icon, icon_size which)
 {
-	BNodeInfo fileInfo(node);
-	return fileInfo.GetIcon(icon, which);
+	if (node == NULL || icon == NULL)
+		return B_BAD_VALUE;
+
+	status_t result;
+	result = node->InitCheck();
+	if (result != B_OK)
+		return result;
+
+	result = icon->InitCheck();
+	if (result != B_OK)
+		return result;
+
+	BNodeInfo nodeInfo(node);
+	BString thumbnailAttrName("Thumbnail:");
+	thumbnailAttrName << which;
+	const char* thumbnailAttrNameString = thumbnailAttrName.String();
+	attr_info attrInfo;
+	if (BIconUtils::IsEligibleForThumbnail(node)
+		&& (node->GetAttrInfo("Media:Width", &attrInfo)
+				== B_ENTRY_NOT_FOUND
+			|| node->GetAttrInfo("Media:Height", &attrInfo)
+				== B_ENTRY_NOT_FOUND
+			|| (which >= B_LARGE_ICON
+				&& node->GetAttrInfo(thumbnailAttrNameString, &attrInfo)
+					== B_ENTRY_NOT_FOUND))) {
+		// try to get a thumbnail
+		type_code attrType = B_RGB_32_BIT_TYPE;
+
+		BFile* file = dynamic_cast<BFile*>(node);
+		BTranslatorRoster* roster = BTranslatorRoster::Default();
+		if (file != NULL && roster != NULL) {
+			char type[B_MIME_TYPE_LENGTH];
+			BBitmapStream imageStream;
+			BBitmap* imageBitmap;
+			if (nodeInfo.GetType(type) == B_OK
+				&& roster->Translate(file, NULL, NULL, &imageStream,
+					B_TRANSLATOR_BITMAP, 0, type) == B_OK
+				&& imageStream.DetachBitmap(&imageBitmap) == B_OK) {
+				if (node->GetAttrInfo("Media:Width", &attrInfo)
+						== B_ENTRY_NOT_FOUND) {
+					// write the image width to an attribute
+					int32 width = imageBitmap->Bounds().IntegerWidth() + 1;
+					node->WriteAttr("Media:Width", B_INT32_TYPE, 0, &width,
+						sizeof(int32));
+				}
+
+				if (node->GetAttrInfo("Media:Height", &attrInfo)
+						== B_ENTRY_NOT_FOUND) {
+					// write the image height to an attribute
+					int32 height = imageBitmap->Bounds().IntegerHeight() + 1;
+					node->WriteAttr("Media:Height", B_INT32_TYPE, 0, &height,
+						sizeof(int32));
+				}
+
+				if (which >= B_LARGE_ICON
+					&& node->GetAttrInfo(thumbnailAttrNameString, &attrInfo)
+						== B_ENTRY_NOT_FOUND) {
+					// write the thumbnail to an attribute
+					float aspectRatio = imageBitmap->Bounds().Width()
+						/ imageBitmap->Bounds().Height();
+					BRect thumbnailBounds;
+					if (aspectRatio > 1) {
+						// wide
+						thumbnailBounds = BRect(0, 0, icon->Bounds().Width(),
+							roundf(icon->Bounds().Height() / aspectRatio));
+						thumbnailBounds.OffsetBySelf(0,
+							roundf(icon->Bounds().Height() / 2
+								- thumbnailBounds.Height() / 2));
+					} else if (aspectRatio < 1) {
+						// tall
+						thumbnailBounds = BRect(0, 0,
+							roundf(icon->Bounds().Width() * aspectRatio),
+							icon->Bounds().Height());
+						thumbnailBounds.OffsetBySelf(
+							roundf(icon->Bounds().Width() / 2
+								- thumbnailBounds.Width() / 2), 0);
+					} else {
+						// square
+						thumbnailBounds = icon->Bounds();
+					}
+
+					// copy the image into a view bitmap, scaled and centered
+					BBitmap viewBitmap(icon->Bounds(), icon->ColorSpace(),
+						true);
+					BView view(icon->Bounds(), "", B_FOLLOW_NONE, 0);
+					viewBitmap.AddChild(&view);
+					if (view.LockLooper()) {
+						view.SetViewColor(B_TRANSPARENT_COLOR);
+						view.SetLowColor(B_TRANSPARENT_COLOR);
+						view.FillRect(view.Bounds(), B_SOLID_LOW);
+						view.DrawBitmap(imageBitmap, imageBitmap->Bounds(),
+							thumbnailBounds, strcmp(type, "image/gif") == 0
+								? 0 : B_FILTER_BITMAP_BILINEAR);
+						view.UnlockLooper();
+					}
+					viewBitmap.RemoveChild(&view);
+
+					// write the icon to an attribute
+					node->WriteAttr(thumbnailAttrNameString, attrType, 0,
+						viewBitmap.Bits(), viewBitmap.BitsLength());
+				}
+			}
+		}
+	}
+
+	return nodeInfo.GetIcon(icon, which);
 }
 
 

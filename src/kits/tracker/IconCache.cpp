@@ -1207,8 +1207,17 @@ IconCache::IconChanged(Model* model)
 {
 	AutoLock<SimpleIconCache> lock(&fNodeCache);
 
-	if (model->IconFrom() == kNode || model->IconFrom() == kVolume)
+	if (model->IconFrom() == kNode || model->IconFrom() == kVolume) {
 		fNodeCache.Deleting(model->NodeRef());
+		if (model->IconFrom() == kNode) {
+			BNode* node = model->Node();
+			char attrName[B_ATTR_NAME_LENGTH];
+			while (node != NULL && node->GetNextAttrName(attrName) == B_OK) {
+				if (BString(attrName).StartsWith("Thumbnail:"))
+					node->RemoveAttr(attrName);
+			}
+		}
+	}
 
 	model->ResetIconFrom();
 }
