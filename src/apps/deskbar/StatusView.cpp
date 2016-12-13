@@ -1168,8 +1168,10 @@ TReplicantTray::LocationForReplicant(int32 index, float width)
 		// try to find free space in every row
 		for (int32 row = 0; ; loc.y += kMaxReplicantHeight + kIconGap, row++) {
 			// determine free space in this row
-			BRect rect(loc.x, loc.y, loc.x + fMinimumTrayWidth - kIconGap
-				- 2.0, loc.y + kMaxReplicantHeight);
+			BRect rect(loc.x, loc.y,
+				loc.x + static_cast<TBarApp*>(be_app)->Settings()->width
+					- kIconGap - 2.0f,
+				loc.y + kMaxReplicantHeight);
 			if (row == 0 && !fTime->IsHidden())
 				rect.right -= fTime->Frame().Width() + kIconGap;
 
