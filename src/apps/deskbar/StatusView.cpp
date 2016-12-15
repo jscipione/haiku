@@ -1351,17 +1351,6 @@ TDragRegion::GetPreferredSize(float* width, float* height)
 
 
 void
-TDragRegion::FrameMoved(BPoint)
-{
-	if (fBarView->Left() && fBarView->Vertical()
-		&& fDragLocation != kNoDragRegion) {
-		fChild->MoveTo(5, 2);
-	} else
-		fChild->MoveTo(2, 2);
-}
-
-
-void
 TDragRegion::Draw(BRect)
 {
 	rgb_color menuColor = ViewColor();
