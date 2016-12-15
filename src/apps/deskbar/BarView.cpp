@@ -441,6 +441,7 @@ TBarView::PlaceTray(bool vertSwap, bool leftSwap)
 		statusLoc.y = fBarMenuBar->Frame().bottom + 1;
 		statusLoc.x = 0;
 		fDragRegion->MoveTo(statusLoc);
+		fDragRegion->Invalidate();
 
 		if (!fReplicantTray->IsHidden())
 			fReplicantTray->Hide();
