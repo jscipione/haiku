@@ -1781,11 +1781,17 @@ TResizeControl::MouseMoved(BPoint where, uint32 code,
 			}
 
 			windowWidth = Window()->Frame().Width();
-			if (windowWidth >= gMaximumWindowWidth)
-				be_app->SetCursor(fResizeEastCursor);
-			else if (windowWidth <= gMinimumWindowWidth)
-				be_app->SetCursor(fResizeWestCursor);
-			else
+			if (windowWidth >= gMaximumWindowWidth) {
+				if (fBarView->Left())
+					be_app->SetCursor(fResizeWestCursor);
+				else
+					be_app->SetCursor(fResizeEastCursor);
+			} else if (windowWidth <= gMinimumWindowWidth) {
+				if (fBarView->Left())
+					be_app->SetCursor(fResizeEastCursor);
+				else
+					be_app->SetCursor(fResizeWestCursor);
+			} else
 				be_app->SetCursor(fResizeEastWestCursor);
 		}
 	}
