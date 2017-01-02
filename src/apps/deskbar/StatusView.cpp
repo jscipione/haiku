@@ -1174,7 +1174,7 @@ TReplicantTray::LocationForReplicant(int32 index, float width)
 				loc.y + kMaxReplicantHeight);
 			if (row == 0 && !fTime->IsHidden()) {
 				rect.right -= fTime->Frame().Width() + kDragRegionWidth
-					+ kIconGap;
+					+ kIconGap + 5.0f;	// 5.0f is for resize dragger
 			}
 
 			for (int32 i = 0; i < index; i++) {
