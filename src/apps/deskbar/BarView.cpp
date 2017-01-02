@@ -466,21 +466,24 @@ TBarView::PlaceTray(bool vertSwap, bool leftSwap)
 				fReplicantTray->MoveTo(5, 2);
 			else
 				fReplicantTray->MoveTo(2, 2);
+
+			if (fResizeControl->IsHidden())
+				fResizeControl->Show();
 		} else {
 			BRect screenFrame = (BScreen(Window())).Frame();
 			statusLoc.x = screenFrame.right - fDragRegion->Bounds().Width();
 			statusLoc.y = -1;
+
+			if (!fResizeControl->IsHidden())
+				fResizeControl->Hide();
 		}
 
 		fDragRegion->MoveTo(statusLoc);
 		fDragRegion->Invalidate();
 
-		if (fVertical) {
-			if (fLeft) {
-				fResizeControl->MoveTo(fReplicantTray->Bounds().right - 1, 0);
-			} else
-				fResizeControl->MoveTo(0.0f, 0.0f);
-		} else
+		if (fVertical && fLeft)
+			fResizeControl->MoveTo(fReplicantTray->Bounds().right - 1, 0);
+		else
 			fResizeControl->MoveTo(0.0f, 0.0f);
 
 		fResizeControl->Invalidate();

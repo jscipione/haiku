@@ -177,7 +177,7 @@ TReplicantTray::AttachedToWindow()
 
 	float deltaX = Bounds().right - fTime->Bounds().Width() - 1;
 	if (fBarView->Vertical() && !fBarView->Left())
-		deltaX -= 3.0f;	// make room for resize drag region
+		deltaX -= 4.0f;	// make room for resize drag region
 
 	fTime->MoveTo(deltaX, 2);
 
@@ -1647,14 +1647,13 @@ TDragRegion::SetDragRegionLocation(int32 location)
 */
 TResizeControl::TResizeControl(TBarView* barView)
 	:
-	BControl(BRect(0.0f, 3.0f, 0.0f, 21.0f), "", "", NULL, B_FOLLOW_NONE,
+	BControl(BRect(0.0f, 4.0f, 0.0f, 21.0f), "", "", NULL, B_FOLLOW_NONE,
 		B_WILL_DRAW | B_FRAME_EVENTS),
 	fBarView(barView),
 	fResizeEastWestCursor(new BCursor(B_CURSOR_ID_RESIZE_EAST_WEST)),
 	fResizeEastCursor(new BCursor(B_CURSOR_ID_RESIZE_EAST)),
 	fResizeWestCursor(new BCursor(B_CURSOR_ID_RESIZE_WEST))
 {
-	SetViewCursor(fResizeEastWestCursor);
 }
 
 
@@ -1676,14 +1675,16 @@ TResizeControl::AttachedToWindow()
 	else
 		SetViewUIColor(B_MENU_BACKGROUND_COLOR);
 
-	if (!fBarView->Vertical())
-		Hide();
+	SetViewCursor(fResizeEastWestCursor);
 }
 
 
 void
 TResizeControl::Draw(BRect updateRect)
 {
+	if (!fBarView->Vertical())
+		return;
+
 	BRect dragRegion(updateRect);
 
 	rgb_color menuColor = ViewColor();
