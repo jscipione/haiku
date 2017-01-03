@@ -231,26 +231,31 @@ TBarWindow::FrameResized(float width, float height)
 	if (!fBarView->Vertical())
 		return BWindow::FrameResized(width, height);
 
-	float newWidth = width;
+	bool setToHiddenSize = static_cast<TBarApp*>(be_app)->Settings()->autoHide
+		&& fBarView->IsHidden() && !fBarView->DragRegion()->IsDragging();
+	if (!setToHiddenSize) {
+		// constrain within limits
+		float newWidth;
+		if (width < gMinimumWindowWidth)
+			newWidth = gMinimumWindowWidth;
+		else if (width > gMaximumWindowWidth)
+			newWidth = gMaximumWindowWidth;
+		else
+			newWidth = width;
 
-	if (width < gMinimumWindowWidth)
-		newWidth = gMinimumWindowWidth;
-	else if (width > gMaximumWindowWidth)
-		newWidth = gMaximumWindowWidth;
-
-	// update the width setting
-	static_cast<TBarApp*>(be_app)->Settings()->width = newWidth;
+		// update width setting
+		static_cast<TBarApp*>(be_app)->Settings()->width = newWidth;
+	}
 
 	if (Lock()) {
-		fBarView->ResizeTo(newWidth, fBarView->Bounds().Height());
+		fBarView->ResizeTo(width, fBarView->Bounds().Height());
 		if (fBarView->Vertical() && fBarView->ExpandoState())
-			fBarView->ExpandoMenuBar()->SetMaxContentWidth(newWidth);
+			fBarView->ExpandoMenuBar()->SetMaxContentWidth(width);
 
 		fBarView->UpdatePlacement();
 		Unlock();
 	}
 }
-
 
 
 void
