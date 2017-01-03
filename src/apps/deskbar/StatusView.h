@@ -46,6 +46,7 @@ All rights reserved.
 #include "TimeView.h"
 
 
+const float kDragWidth = 4.0f;
 const float kMaxReplicantHeight = 16.0f;
 const float kMaxReplicantWidth = 16.0f;
 const int32 kMinimumReplicantCount = 6;

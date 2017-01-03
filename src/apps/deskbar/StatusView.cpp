@@ -91,7 +91,6 @@ const char* const kReplicantPathField = "replicant_path";
 float gMinimumWindowWidth = kGutter + kMinimumTrayWidth + kDragRegionWidth;
 float gMaximumWindowWidth = gMinimumWindowWidth * 2;
 
-
 static void
 DumpItem(DeskbarItemInfo* item)
 {
@@ -177,7 +176,7 @@ TReplicantTray::AttachedToWindow()
 
 	float deltaX = Bounds().right - fTime->Bounds().Width() - 1;
 	if (fBarView->Vertical() && !fBarView->Left())
-		deltaX -= 4.0f;	// make room for resize drag region
+		deltaX -= kDragWidth;
 
 	fTime->MoveTo(deltaX, 2);
 
@@ -1162,7 +1161,7 @@ TReplicantTray::LocationForReplicant(int32 index, float width)
 {
 	BPoint loc(kIconGap + 1, kGutter + 1);
 	if (fBarView->Vertical() && !fBarView->Left())
-		loc.x += 5;	// leave room for resize dragger
+		loc.x += kDragWidth;
 
 	if (fMultiRowMode) {
 		// try to find free space in every row
@@ -1174,7 +1173,7 @@ TReplicantTray::LocationForReplicant(int32 index, float width)
 				loc.y + kMaxReplicantHeight);
 			if (row == 0 && !fTime->IsHidden()) {
 				rect.right -= fTime->Frame().Width() + kDragRegionWidth
-					+ kIconGap + 5.0f;	// 5.0f is for resize dragger
+					+ kIconGap + kDragWidth;
 			}
 
 			for (int32 i = 0; i < index; i++) {
@@ -1445,11 +1444,9 @@ TDragRegion::DragRegion() const
 {
 	float kTopBottomInset = 2;
 	float kLeftRightInset = 1;
-	float kDragWidth = 3;
 	if (be_control_look != NULL) {
 		kTopBottomInset = 1;
 		kLeftRightInset = 0;
-		kDragWidth = 4;
 	}
 
 	BRect dragRegion(Bounds());
@@ -1647,8 +1644,8 @@ TDragRegion::SetDragRegionLocation(int32 location)
 */
 TResizeControl::TResizeControl(TBarView* barView)
 	:
-	BControl(BRect(0.0f, 4.0f, 0.0f, 21.0f), "", "", NULL, B_FOLLOW_NONE,
-		B_WILL_DRAW | B_FRAME_EVENTS),
+	BControl(BRect(0, kDragWidth, 0, kMenuBarHeight), "", "", NULL,
+		B_FOLLOW_NONE, B_WILL_DRAW | B_FRAME_EVENTS),
 	fBarView(barView),
 	fResizeEastWestCursor(new BCursor(B_CURSOR_ID_RESIZE_EAST_WEST)),
 	fResizeEastCursor(new BCursor(B_CURSOR_ID_RESIZE_EAST)),

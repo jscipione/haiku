@@ -457,7 +457,7 @@ TBarView::PlaceTray(bool vertSwap, bool leftSwap)
 		fReplicantTray->RealignReplicants();
 		fDragRegion->ResizeToPreferred();
 
-		fResizeControl->ResizeTo(3.0f, fDragRegion->Bounds().Height());
+		fResizeControl->ResizeTo(kDragWidth, fDragRegion->Bounds().Height());
 
 		if (fVertical) {
 			statusLoc.y = fBarMenuBar->Frame().bottom + 1;
