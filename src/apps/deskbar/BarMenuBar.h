@@ -47,6 +47,7 @@ All rights reserved.
 
 class TBarMenuTitle;
 class TBarView;
+class TDeskbarMenuTitle;
 
 class TSeparatorItem : public BSeparatorItem {
 public:
@@ -61,11 +62,14 @@ public:
 								TBarView* barView);
 	virtual					~TBarMenuBar();
 
+	virtual	void			AttachedToWindow();
+
 	virtual	void			MouseMoved(BPoint where, uint32 code,
 								const BMessage* message);
-	virtual	void			Draw(BRect);
 
+	virtual	void			Draw(BRect);
 			void			DrawBackground(BRect);
+
 			void			SmartResize(float width = -1.0f,
 								float height = -1.0f);
 
@@ -79,9 +83,11 @@ public:
 								bool (* hookfunction)(BMenu*, void*),
 								void* state, bool both = false);
 
+	TDeskbarMenuTitle*		DeskbarMenuTitle() { return fDeskbarMenuItem; };
+
 private:
 			TBarView*		fBarView;
-			TBarMenuTitle*	fDeskbarMenuItem;
+		TDeskbarMenuTitle*	fDeskbarMenuItem;
 			TBarMenuTitle*	fAppListMenuItem;
 			TSeparatorItem*	fSeparatorItem;
 };

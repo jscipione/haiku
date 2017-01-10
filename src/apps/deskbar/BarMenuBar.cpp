@@ -43,6 +43,7 @@ All rights reserved.
 
 #include "icons.h"
 
+#include "BarApp.h"
 #include "BarMenuTitle.h"
 #include "BarView.h"
 #include "BarWindow.h"
@@ -108,14 +109,23 @@ TBarMenuBar::TBarMenuBar(BRect frame, const char* name, TBarView* barView)
 	TDeskbarMenu* beMenu = new TDeskbarMenu(barView);
 	TBarWindow::SetDeskbarMenu(beMenu);
 
-	fDeskbarMenuItem = new TBarMenuTitle(0.0f, 0.0f,
-		AppResSet()->FindBitmap(B_MESSAGE_TYPE, R_LeafLogoBitmap), beMenu);
+	fDeskbarMenuItem = new TDeskbarMenuTitle(frame.Width(), frame.Height(),
+		NULL, beMenu);
 	AddItem(fDeskbarMenuItem);
 }
 
 
 TBarMenuBar::~TBarMenuBar()
 {
+}
+
+
+void
+TBarMenuBar::AttachedToWindow()
+{
+	BMenuBar::AttachedToWindow();
+
+	fDeskbarMenuItem->FetchIcon();
 }
 
 
@@ -140,6 +150,8 @@ TBarMenuBar::SmartResize(float width, float height)
 		if (fAppListMenuItem)
 			fAppListMenuItem->SetContentSize(width / count, height);
 	}
+
+	fDeskbarMenuItem->FetchIcon();
 
 	InvalidateLayout();
 }
