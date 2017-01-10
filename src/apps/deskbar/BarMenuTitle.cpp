@@ -233,16 +233,45 @@ TDeskbarMenuTitle::FetchIcon()
 			== B_OK) {
 		// rasterized vector icon into a bitmap
 		SetIcon(icon);
+	} else if (icon == NULL) {
+		// not enough memory to create icon bitmap
+		return NULL;
 	} else {
 		// fetched bitmap instead
 		const BBitmap* leaf = AppResSet()->FindBitmap(B_MESSAGE_TYPE,
 			R_LeafLogoBitmap);
-		// make a copy of the leaf bitmap that we can safely delete
-		BBitmap* leafCopy = new BBitmap(leaf->Bounds(), leaf->ColorSpace());
-		leafCopy->ImportBits(leaf);
-		SetIcon(leafCopy);
-		// TODO: scale the bitmap into icon
-		delete icon;
+
+		// copy leaf into icon, centered and scaled
+		BBitmap viewBitmap(icon->Bounds(), icon->ColorSpace(), true);
+		BView view(icon->Bounds(), "", B_FOLLOW_NONE, 0);
+		viewBitmap.AddChild(&view);
+		if (view.LockLooper()) {
+			// fill background with transparent pixels
+			view.SetViewColor(B_TRANSPARENT_COLOR);
+			view.SetLowColor(B_TRANSPARENT_COLOR);
+			view.FillRect(view.Bounds(), B_SOLID_LOW);
+
+			// center
+			float aspectRatio = leaf->Bounds().Width()
+				/ leaf->Bounds().Height();
+			BRect translationRect = BRect(0, 0, icon->Bounds().Width(),
+				roundf(icon->Bounds().Height() / aspectRatio));
+			translationRect.OffsetBySelf(0, roundf(icon->Bounds().Height() / 2
+				- translationRect.Height() / 2));
+
+			// TODO: bilinear scaling turns background black,
+			// fix this and bitmap would look better.
+
+			// scale
+			view.DrawBitmap(leaf, leaf->Bounds(), translationRect, 0
+				/*B_FILTER_BITMAP_BILINEAR*/);
+			view.UnlockLooper();
+		}
+		viewBitmap.RemoveChild(&view);
+
+		// copy scaled bitmap into icon
+		icon->ImportBits(&viewBitmap);
+		SetIcon(icon);
 	}
 
 	return fIcon;
@@ -254,10 +283,9 @@ TDeskbarMenuTitle::CalcIconWidth()
 {
 	TBarApp* barApp = static_cast<TBarApp*>(be_app);
 	bool isVertical = barApp->BarView()->Vertical();
-	bool hasBitmapIcon = fVectorIconData == NULL;
 
 	float m = 3;
-	float x = (isVertical || hasBitmapIcon) ? kMinimumIconSize
+	float x = isVertical ? kMinimumIconSize
 		: std::min(barApp->IconSize(), kIconSizeCutoff);
 	float b = kMinimumIconSize;
 
