@@ -202,6 +202,8 @@ TBarView::AttachedToWindow()
 	fTrackingHookData.fTrackingHook = MenuTrackingHook;
 	fTrackingHookData.fTarget = BMessenger(this);
 	fTrackingHookData.fDragMessage = new BMessage(B_REFS_RECEIVED);
+
+	fBarMenuBar->DeskbarMenuTitle()->FetchIcon();
 }
 
 

@@ -121,15 +121,6 @@ TBarMenuBar::~TBarMenuBar()
 
 
 void
-TBarMenuBar::AttachedToWindow()
-{
-	BMenuBar::AttachedToWindow();
-
-	fDeskbarMenuItem->FetchIcon();
-}
-
-
-void
 TBarMenuBar::SmartResize(float width, float height)
 {
 	if (width == -1.0f && height == -1.0f) {
