@@ -2,8 +2,8 @@
  * Copyright 2009-2017, Haiku, Inc. All rights reserved.
  * Distributed under the terms of the MIT License.
  */
-#ifndef _HAIKU_CONTROL_LOOK_H
-#define _HAIKU_CONTROL_LOOK_H
+#ifndef _BE_CONTROL_LOOK_H
+#define _BE_CONTROL_LOOK_H
 
 
 #include <ControlLook.h>
@@ -18,10 +18,10 @@ class BView;
 namespace BPrivate {
 
 
-class HaikuControlLook : public BControlLook {
+class BeControlLook : public BControlLook {
 public:
-								HaikuControlLook();
-	virtual						~HaikuControlLook();
+								BeControlLook();
+	virtual						~BeControlLook();
 
 	virtual	void				DrawButtonFrame(BView* view, BRect& rect,
 									const BRect& updateRect,
@@ -557,4 +557,5 @@ private:
 
 } // namespace BPrivate
 
-#endif // _HAIKU_CONTROL_LOOK_H
+
+#endif // _BE_CONTROL_LOOK_H

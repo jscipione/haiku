@@ -46,6 +46,7 @@ for architectureObject in [ MultiArchSubDirSetup ] {
 			AffineTransform.cpp
 			Alert.cpp
 			Alignment.cpp
+			BeControlLook.cpp
 			Bitmap.cpp
 			BMCPrivate.cpp
 			Box.cpp

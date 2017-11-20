@@ -9,7 +9,7 @@
  */
 
 
-#include <HaikuControlLook.h>
+#include <BeControlLook.h>
 
 #include <algorithm>
 
@@ -36,23 +36,23 @@ static const float kButtonPopUpIndicatorWidth = 11;
 //	#pragma mark - Contructors and destructors
 
 
-HaikuControlLook::HaikuControlLook()
+BeControlLook::BeControlLook()
 	:
 	fCachedOutline(false)
 {
 }
 
 
-HaikuControlLook::~HaikuControlLook()
+BeControlLook::~BeControlLook()
 {
 }
 
 
-//	#pragma mark - Drawing methods
+// #pragma mark - Drawing methods
 
 
 void
-HaikuControlLook::DrawButtonFrame(BView* view, BRect& rect, const BRect& updateRect,
+BeControlLook::DrawButtonFrame(BView* view, BRect& rect, const BRect& updateRect,
 	const rgb_color& base, const rgb_color& background, uint32 flags,
 	uint32 borders)
 {
@@ -62,7 +62,7 @@ HaikuControlLook::DrawButtonFrame(BView* view, BRect& rect, const BRect& updateR
 
 
 void
-HaikuControlLook::DrawButtonFrame(BView* view, BRect& rect, const BRect& updateRect,
+BeControlLook::DrawButtonFrame(BView* view, BRect& rect, const BRect& updateRect,
 	float radius, const rgb_color& base, const rgb_color& background, uint32 flags,
 	uint32 borders)
 {
@@ -72,7 +72,7 @@ HaikuControlLook::DrawButtonFrame(BView* view, BRect& rect, const BRect& updateR
 
 
 void
-HaikuControlLook::DrawButtonFrame(BView* view, BRect& rect,
+BeControlLook::DrawButtonFrame(BView* view, BRect& rect,
 	const BRect& updateRect, float leftTopRadius, float rightTopRadius,
 	float leftBottomRadius, float rightBottomRadius, const rgb_color& base,
 	const rgb_color& background, uint32 flags,
@@ -85,7 +85,7 @@ HaikuControlLook::DrawButtonFrame(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::DrawButtonBackground(BView* view, BRect& rect,
+BeControlLook::DrawButtonBackground(BView* view, BRect& rect,
 	const BRect& updateRect, const rgb_color& base, uint32 flags,
 	uint32 borders, orientation orientation)
 {
@@ -95,7 +95,7 @@ HaikuControlLook::DrawButtonBackground(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::DrawButtonBackground(BView* view, BRect& rect,
+BeControlLook::DrawButtonBackground(BView* view, BRect& rect,
 	const BRect& updateRect, float radius, const rgb_color& base, uint32 flags,
 	uint32 borders, orientation orientation)
 {
@@ -105,7 +105,7 @@ HaikuControlLook::DrawButtonBackground(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::DrawButtonBackground(BView* view, BRect& rect,
+BeControlLook::DrawButtonBackground(BView* view, BRect& rect,
 	const BRect& updateRect, float leftTopRadius, float rightTopRadius,
 	float leftBottomRadius, float rightBottomRadius, const rgb_color& base,
 	uint32 flags, uint32 borders, orientation orientation)
@@ -117,7 +117,7 @@ HaikuControlLook::DrawButtonBackground(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::DrawMenuBarBackground(BView* view, BRect& rect,
+BeControlLook::DrawMenuBarBackground(BView* view, BRect& rect,
 	const BRect& updateRect, const rgb_color& base, uint32 flags,
 	uint32 borders)
 {
@@ -163,7 +163,7 @@ HaikuControlLook::DrawMenuBarBackground(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::DrawMenuFieldFrame(BView* view, BRect& rect,
+BeControlLook::DrawMenuFieldFrame(BView* view, BRect& rect,
 	const BRect& updateRect, const rgb_color& base,
 	const rgb_color& background, uint32 flags, uint32 borders)
 {
@@ -173,7 +173,7 @@ HaikuControlLook::DrawMenuFieldFrame(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::DrawMenuFieldFrame(BView* view, BRect& rect,
+BeControlLook::DrawMenuFieldFrame(BView* view, BRect& rect,
 	const BRect& updateRect, float radius, const rgb_color& base,
 	const rgb_color& background, uint32 flags, uint32 borders)
 {
@@ -183,7 +183,7 @@ HaikuControlLook::DrawMenuFieldFrame(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::DrawMenuFieldFrame(BView* view, BRect& rect,
+BeControlLook::DrawMenuFieldFrame(BView* view, BRect& rect,
 	const BRect& updateRect, float leftTopRadius,
 	float rightTopRadius, float leftBottomRadius,
 	float rightBottomRadius, const rgb_color& base,
@@ -196,7 +196,7 @@ HaikuControlLook::DrawMenuFieldFrame(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::DrawMenuFieldBackground(BView* view, BRect& rect,
+BeControlLook::DrawMenuFieldBackground(BView* view, BRect& rect,
 	const BRect& updateRect, const rgb_color& base, bool popupIndicator,
 	uint32 flags)
 {
@@ -206,7 +206,7 @@ HaikuControlLook::DrawMenuFieldBackground(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::DrawMenuFieldBackground(BView* view, BRect& rect,
+BeControlLook::DrawMenuFieldBackground(BView* view, BRect& rect,
 	const BRect& updateRect, const rgb_color& base, uint32 flags,
 	uint32 borders)
 {
@@ -216,7 +216,7 @@ HaikuControlLook::DrawMenuFieldBackground(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::DrawMenuFieldBackground(BView* view, BRect& rect,
+BeControlLook::DrawMenuFieldBackground(BView* view, BRect& rect,
 	const BRect& updateRect, float radius, const rgb_color& base,
 	bool popupIndicator, uint32 flags)
 {
@@ -226,7 +226,7 @@ HaikuControlLook::DrawMenuFieldBackground(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::DrawMenuFieldBackground(BView* view, BRect& rect,
+BeControlLook::DrawMenuFieldBackground(BView* view, BRect& rect,
 	const BRect& updateRect, float leftTopRadius, float rightTopRadius,
 	float leftBottomRadius, float rightBottomRadius, const rgb_color& base,
 	bool popupIndicator, uint32 flags)
@@ -238,7 +238,7 @@ HaikuControlLook::DrawMenuFieldBackground(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::DrawMenuBackground(BView* view, BRect& rect,
+BeControlLook::DrawMenuBackground(BView* view, BRect& rect,
 	const BRect& updateRect, const rgb_color& base, uint32 flags,
 	uint32 borders)
 {
@@ -273,7 +273,7 @@ HaikuControlLook::DrawMenuBackground(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::DrawMenuItemBackground(BView* view, BRect& rect,
+BeControlLook::DrawMenuItemBackground(BView* view, BRect& rect,
 	const BRect& updateRect, const rgb_color& base, uint32 flags,
 	uint32 borders)
 {
@@ -313,7 +313,7 @@ HaikuControlLook::DrawMenuItemBackground(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::DrawStatusBar(BView* view, BRect& rect, const BRect& updateRect,
+BeControlLook::DrawStatusBar(BView* view, BRect& rect, const BRect& updateRect,
 	const rgb_color& base, const rgb_color& barColor, float progressPosition)
 {
 	if (!rect.Intersects(updateRect))
@@ -366,7 +366,7 @@ HaikuControlLook::DrawStatusBar(BView* view, BRect& rect, const BRect& updateRec
 
 
 void
-HaikuControlLook::DrawCheckBox(BView* view, BRect& rect, const BRect& updateRect,
+BeControlLook::DrawCheckBox(BView* view, BRect& rect, const BRect& updateRect,
 	const rgb_color& base, uint32 flags)
 {
 	if (!rect.Intersects(updateRect))
@@ -438,7 +438,7 @@ HaikuControlLook::DrawCheckBox(BView* view, BRect& rect, const BRect& updateRect
 
 
 void
-HaikuControlLook::DrawRadioButton(BView* view, BRect& rect, const BRect& updateRect,
+BeControlLook::DrawRadioButton(BView* view, BRect& rect, const BRect& updateRect,
 	const rgb_color& base, uint32 flags)
 {
 	if (!rect.Intersects(updateRect))
@@ -509,7 +509,7 @@ HaikuControlLook::DrawRadioButton(BView* view, BRect& rect, const BRect& updateR
 
 
 void
-HaikuControlLook::DrawScrollBarBackground(BView* view, BRect& rect1, BRect& rect2,
+BeControlLook::DrawScrollBarBackground(BView* view, BRect& rect1, BRect& rect2,
 	const BRect& updateRect, const rgb_color& base, uint32 flags,
 	orientation orientation)
 {
@@ -519,7 +519,7 @@ HaikuControlLook::DrawScrollBarBackground(BView* view, BRect& rect1, BRect& rect
 
 
 void
-HaikuControlLook::DrawScrollBarBackground(BView* view, BRect& rect,
+BeControlLook::DrawScrollBarBackground(BView* view, BRect& rect,
 	const BRect& updateRect, const rgb_color& base, uint32 flags,
 	orientation orientation)
 {
@@ -603,7 +603,7 @@ HaikuControlLook::DrawScrollBarBackground(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::DrawScrollViewFrame(BView* view, BRect& rect,
+BeControlLook::DrawScrollViewFrame(BView* view, BRect& rect,
 	const BRect& updateRect, BRect verticalScrollBarFrame,
 	BRect horizontalScrollBarFrame, const rgb_color& base,
 	border_style borderStyle, uint32 flags, uint32 _borders)
@@ -687,7 +687,7 @@ HaikuControlLook::DrawScrollViewFrame(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::DrawArrowShape(BView* view, BRect& rect, const BRect& updateRect,
+BeControlLook::DrawArrowShape(BView* view, BRect& rect, const BRect& updateRect,
 	const rgb_color& base, uint32 direction, uint32 flags, float tint)
 {
 	BPoint tri1, tri2, tri3;
@@ -702,21 +702,18 @@ HaikuControlLook::DrawArrowShape(BView* view, BRect& rect, const BRect& updateRe
 				(rect.top + rect.bottom + 1) / 2);
 			tri3.Set(rect.right, rect.bottom + 1);
 			break;
-
 		case B_RIGHT_ARROW:
 			tri1.Set(rect.left + 1, rect.bottom + 1);
 			tri2.Set(rect.left + 1 + rect.Width() / 1.33,
 				(rect.top + rect.bottom + 1) / 2);
 			tri3.Set(rect.left + 1, rect.top);
 			break;
-
 		case B_UP_ARROW:
 			tri1.Set(rect.left, rect.bottom);
 			tri2.Set((rect.left + rect.right + 1) / 2,
 				rect.bottom - rect.Height() / 1.33);
 			tri3.Set(rect.right + 1, rect.bottom);
 			break;
-
 		case B_DOWN_ARROW:
 		default:
 			tri1.Set(rect.left, rect.top + 1);
@@ -724,25 +721,21 @@ HaikuControlLook::DrawArrowShape(BView* view, BRect& rect, const BRect& updateRe
 				rect.top + 1 + rect.Height() / 1.33);
 			tri3.Set(rect.right + 1, rect.top + 1);
 			break;
-
 		case B_LEFT_UP_ARROW:
 			tri1.Set(rect.left, rect.bottom);
 			tri2.Set(rect.left, rect.top);
 			tri3.Set(rect.right - 1, rect.top);
 			break;
-
 		case B_RIGHT_UP_ARROW:
 			tri1.Set(rect.left + 1, rect.top);
 			tri2.Set(rect.right, rect.top);
 			tri3.Set(rect.right, rect.bottom);
 			break;
-
 		case B_RIGHT_DOWN_ARROW:
 			tri1.Set(rect.right, rect.top);
 			tri2.Set(rect.right, rect.bottom);
 			tri3.Set(rect.left + 1, rect.bottom);
 			break;
-
 		case B_LEFT_DOWN_ARROW:
 			tri1.Set(rect.right - 1, rect.bottom);
 			tri2.Set(rect.left, rect.bottom);
@@ -775,14 +768,14 @@ HaikuControlLook::DrawArrowShape(BView* view, BRect& rect, const BRect& updateRe
 
 
 rgb_color
-HaikuControlLook::SliderBarColor(const rgb_color& base)
+BeControlLook::SliderBarColor(const rgb_color& base)
 {
 	return tint_color(ui_color(B_PANEL_BACKGROUND_COLOR), B_DARKEN_1_TINT);
 }
 
 
 void
-HaikuControlLook::DrawSliderBar(BView* view, BRect rect, const BRect& updateRect,
+BeControlLook::DrawSliderBar(BView* view, BRect rect, const BRect& updateRect,
 	const rgb_color& base, rgb_color leftFillColor, rgb_color rightFillColor,
 	float sliderScale, uint32 flags, orientation orientation)
 {
@@ -839,7 +832,7 @@ HaikuControlLook::DrawSliderBar(BView* view, BRect rect, const BRect& updateRect
 
 
 void
-HaikuControlLook::DrawSliderBar(BView* view, BRect rect, const BRect& updateRect,
+BeControlLook::DrawSliderBar(BView* view, BRect rect, const BRect& updateRect,
 	const rgb_color& base, rgb_color fillColor, uint32 flags,
 	orientation orientation)
 {
@@ -986,7 +979,7 @@ HaikuControlLook::DrawSliderBar(BView* view, BRect rect, const BRect& updateRect
 
 
 void
-HaikuControlLook::DrawSliderThumb(BView* view, BRect& rect, const BRect& updateRect,
+BeControlLook::DrawSliderThumb(BView* view, BRect& rect, const BRect& updateRect,
 	const rgb_color& base, uint32 flags, orientation orientation)
 {
 	if (!rect.IsValid() || !rect.Intersects(updateRect))
@@ -1070,7 +1063,7 @@ HaikuControlLook::DrawSliderThumb(BView* view, BRect& rect, const BRect& updateR
 
 
 void
-HaikuControlLook::DrawSliderTriangle(BView* view, BRect& rect,
+BeControlLook::DrawSliderTriangle(BView* view, BRect& rect,
 	const BRect& updateRect, const rgb_color& base, uint32 flags,
 	orientation orientation)
 {
@@ -1079,7 +1072,7 @@ HaikuControlLook::DrawSliderTriangle(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::DrawSliderTriangle(BView* view, BRect& rect,
+BeControlLook::DrawSliderTriangle(BView* view, BRect& rect,
 	const BRect& updateRect, const rgb_color& base, const rgb_color& fill,
 	uint32 flags, orientation orientation)
 {
@@ -1197,7 +1190,7 @@ HaikuControlLook::DrawSliderTriangle(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::DrawSliderHashMarks(BView* view, BRect& rect,
+BeControlLook::DrawSliderHashMarks(BView* view, BRect& rect,
 	const BRect& updateRect, const rgb_color& base, int32 count,
 	hash_mark_location location, uint32 flags, orientation orientation)
 {
@@ -1287,7 +1280,7 @@ HaikuControlLook::DrawSliderHashMarks(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::DrawActiveTab(BView* view, BRect& rect, const BRect& updateRect,
+BeControlLook::DrawActiveTab(BView* view, BRect& rect, const BRect& updateRect,
 	const rgb_color& base, uint32 flags, uint32 borders, uint32 side)
 {
 	if (!rect.IsValid() || !rect.Intersects(updateRect))
@@ -1466,7 +1459,7 @@ HaikuControlLook::DrawActiveTab(BView* view, BRect& rect, const BRect& updateRec
 
 
 void
-HaikuControlLook::DrawInactiveTab(BView* view, BRect& rect, const BRect& updateRect,
+BeControlLook::DrawInactiveTab(BView* view, BRect& rect, const BRect& updateRect,
 	const rgb_color& base, uint32 flags, uint32 borders, uint32 side)
 {
 	if (!rect.IsValid() || !rect.Intersects(updateRect))
@@ -1556,7 +1549,7 @@ HaikuControlLook::DrawInactiveTab(BView* view, BRect& rect, const BRect& updateR
 
 
 void
-HaikuControlLook::DrawSplitter(BView* view, BRect& rect, const BRect& updateRect,
+BeControlLook::DrawSplitter(BView* view, BRect& rect, const BRect& updateRect,
 	const rgb_color& base, orientation orientation, uint32 flags,
 	uint32 borders)
 {
@@ -1671,7 +1664,7 @@ HaikuControlLook::DrawSplitter(BView* view, BRect& rect, const BRect& updateRect
 
 
 void
-HaikuControlLook::DrawBorder(BView* view, BRect& rect, const BRect& updateRect,
+BeControlLook::DrawBorder(BView* view, BRect& rect, const BRect& updateRect,
 	const rgb_color& base, border_style borderStyle, uint32 flags,
 	uint32 borders)
 {
@@ -1691,7 +1684,7 @@ HaikuControlLook::DrawBorder(BView* view, BRect& rect, const BRect& updateRect,
 
 
 void
-HaikuControlLook::DrawRaisedBorder(BView* view, BRect& rect,
+BeControlLook::DrawRaisedBorder(BView* view, BRect& rect,
 	const BRect& updateRect, const rgb_color& base, uint32 flags,
 	uint32 borders)
 {
@@ -1712,7 +1705,7 @@ HaikuControlLook::DrawRaisedBorder(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::DrawTextControlBorder(BView* view, BRect& rect,
+BeControlLook::DrawTextControlBorder(BView* view, BRect& rect,
 	const BRect& updateRect, const rgb_color& base, uint32 flags,
 	uint32 borders)
 {
@@ -1782,7 +1775,7 @@ HaikuControlLook::DrawTextControlBorder(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::DrawGroupFrame(BView* view, BRect& rect, const BRect& updateRect,
+BeControlLook::DrawGroupFrame(BView* view, BRect& rect, const BRect& updateRect,
 	const rgb_color& base, uint32 borders)
 {
 	rgb_color frameColor = tint_color(base, 1.30);
@@ -1801,7 +1794,7 @@ HaikuControlLook::DrawGroupFrame(BView* view, BRect& rect, const BRect& updateRe
 
 
 void
-HaikuControlLook::DrawLabel(BView* view, const char* label, BRect rect,
+BeControlLook::DrawLabel(BView* view, const char* label, BRect rect,
 	const BRect& updateRect, const rgb_color& base, uint32 flags,
 	const rgb_color* textColor)
 {
@@ -1811,7 +1804,7 @@ HaikuControlLook::DrawLabel(BView* view, const char* label, BRect rect,
 
 
 void
-HaikuControlLook::DrawLabel(BView* view, const char* label, BRect rect,
+BeControlLook::DrawLabel(BView* view, const char* label, BRect rect,
 	const BRect& updateRect, const rgb_color& base, uint32 flags,
 	const BAlignment& alignment, const rgb_color* textColor)
 {
@@ -1821,7 +1814,7 @@ HaikuControlLook::DrawLabel(BView* view, const char* label, BRect rect,
 
 
 void
-HaikuControlLook::DrawLabel(BView* view, const char* label, const rgb_color& base,
+BeControlLook::DrawLabel(BView* view, const char* label, const rgb_color& base,
 	uint32 flags, const BPoint& where, const rgb_color* textColor)
 {
 	// setup the text color
@@ -1943,7 +1936,7 @@ HaikuControlLook::DrawLabel(BView* view, const char* label, const rgb_color& bas
 
 
 void
-HaikuControlLook::DrawLabel(BView* view, const char* label, const BBitmap* icon,
+BeControlLook::DrawLabel(BView* view, const char* label, const BBitmap* icon,
 	BRect rect, const BRect& updateRect, const rgb_color& base, uint32 flags,
 	const BAlignment& alignment, const rgb_color* textColor)
 {
@@ -2016,7 +2009,7 @@ HaikuControlLook::DrawLabel(BView* view, const char* label, const BBitmap* icon,
 
 
 void
-HaikuControlLook::GetFrameInsets(frame_type frameType, uint32 flags, float& _left,
+BeControlLook::GetFrameInsets(frame_type frameType, uint32 flags, float& _left,
 	float& _top, float& _right, float& _bottom)
 {
 	// All frames have the same inset on each side.
@@ -2044,7 +2037,7 @@ HaikuControlLook::GetFrameInsets(frame_type frameType, uint32 flags, float& _lef
 
 
 void
-HaikuControlLook::GetBackgroundInsets(background_type backgroundType,
+BeControlLook::GetBackgroundInsets(background_type backgroundType,
 	uint32 flags, float& _left, float& _top, float& _right, float& _bottom)
 {
 	// Most backgrounds have the same inset on each side.
@@ -2086,7 +2079,7 @@ HaikuControlLook::GetBackgroundInsets(background_type backgroundType,
 
 
 void
-HaikuControlLook::DrawButtonWithPopUpBackground(BView* view, BRect& rect,
+BeControlLook::DrawButtonWithPopUpBackground(BView* view, BRect& rect,
 	const BRect& updateRect, const rgb_color& base, uint32 flags,
 	uint32 borders, orientation orientation)
 {
@@ -2096,7 +2089,7 @@ HaikuControlLook::DrawButtonWithPopUpBackground(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::DrawButtonWithPopUpBackground(BView* view, BRect& rect,
+BeControlLook::DrawButtonWithPopUpBackground(BView* view, BRect& rect,
 	const BRect& updateRect, float radius, const rgb_color& base, uint32 flags,
 	uint32 borders, orientation orientation)
 {
@@ -2106,7 +2099,7 @@ HaikuControlLook::DrawButtonWithPopUpBackground(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::DrawButtonWithPopUpBackground(BView* view, BRect& rect,
+BeControlLook::DrawButtonWithPopUpBackground(BView* view, BRect& rect,
 	const BRect& updateRect, float leftTopRadius, float rightTopRadius,
 	float leftBottomRadius, float rightBottomRadius, const rgb_color& base,
 	uint32 flags, uint32 borders, orientation orientation)
@@ -2121,7 +2114,7 @@ HaikuControlLook::DrawButtonWithPopUpBackground(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::_DrawButtonFrame(BView* view, BRect& rect,
+BeControlLook::_DrawButtonFrame(BView* view, BRect& rect,
 	const BRect& updateRect, float leftTopRadius, float rightTopRadius,
 	float leftBottomRadius, float rightBottomRadius, const rgb_color& base,
 	const rgb_color& background, float contrast, float brightness,
@@ -2291,7 +2284,7 @@ HaikuControlLook::_DrawButtonFrame(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::_DrawOuterResessedFrame(BView* view, BRect& rect,
+BeControlLook::_DrawOuterResessedFrame(BView* view, BRect& rect,
 	const rgb_color& base, float contrast, float brightness, uint32 flags,
 	uint32 borders)
 {
@@ -2317,7 +2310,7 @@ HaikuControlLook::_DrawOuterResessedFrame(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::_DrawFrame(BView* view, BRect& rect, const rgb_color& left,
+BeControlLook::_DrawFrame(BView* view, BRect& rect, const rgb_color& left,
 	const rgb_color& top, const rgb_color& right, const rgb_color& bottom,
 	uint32 borders)
 {
@@ -2353,7 +2346,7 @@ HaikuControlLook::_DrawFrame(BView* view, BRect& rect, const rgb_color& left,
 
 
 void
-HaikuControlLook::_DrawFrame(BView* view, BRect& rect, const rgb_color& left,
+BeControlLook::_DrawFrame(BView* view, BRect& rect, const rgb_color& left,
 	const rgb_color& top, const rgb_color& right, const rgb_color& bottom,
 	const rgb_color& rightTop, const rgb_color& leftBottom, uint32 borders)
 {
@@ -2404,7 +2397,7 @@ HaikuControlLook::_DrawFrame(BView* view, BRect& rect, const rgb_color& left,
 
 
 void
-HaikuControlLook::_DrawButtonBackground(BView* view, BRect& rect,
+BeControlLook::_DrawButtonBackground(BView* view, BRect& rect,
 	const BRect& updateRect, float leftTopRadius, float rightTopRadius,
 	float leftBottomRadius, float rightBottomRadius, const rgb_color& base,
 	bool popupIndicator, uint32 flags, uint32 borders, orientation orientation)
@@ -2439,7 +2432,7 @@ HaikuControlLook::_DrawButtonBackground(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::_DrawFlatButtonBackground(BView* view, BRect& rect,
+BeControlLook::_DrawFlatButtonBackground(BView* view, BRect& rect,
 	const BRect& updateRect, const rgb_color& base, bool popupIndicator,
 	uint32 flags, uint32 borders, orientation orientation)
 {
@@ -2464,7 +2457,7 @@ HaikuControlLook::_DrawFlatButtonBackground(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::_DrawNonFlatButtonBackground(BView* view, BRect& rect,
+BeControlLook::_DrawNonFlatButtonBackground(BView* view, BRect& rect,
 	const BRect& updateRect, BRegion& clipping, float leftTopRadius,
 	float rightTopRadius, float leftBottomRadius, float rightBottomRadius,
 	const rgb_color& base, bool popupIndicator, uint32 flags, uint32 borders,
@@ -2484,56 +2477,6 @@ HaikuControlLook::_DrawNonFlatButtonBackground(BView* view, BRect& rect,
 	// surface top gradient
 	BGradientLinear fillGradient;
 	_MakeButtonGradient(fillGradient, rect, base, flags, orientation);
-
-	// rounded corners
-
-	if ((borders & B_LEFT_BORDER) != 0 && (borders & B_TOP_BORDER) != 0
-		&& leftTopRadius > 0) {
-		// draw left top rounded corner
-		BRect leftTopCorner(floorf(rect.left), floorf(rect.top),
-			floorf(rect.left + leftTopRadius - 2.0),
-			floorf(rect.top + leftTopRadius - 2.0));
-		clipping.Exclude(leftTopCorner);
-		_DrawRoundCornerBackgroundLeftTop(view, leftTopCorner, updateRect,
-			bevelLightColor, fillGradient);
-	}
-
-	if ((borders & B_TOP_BORDER) != 0 && (borders & B_RIGHT_BORDER) != 0
-		&& rightTopRadius > 0) {
-		// draw right top rounded corner
-		BRect rightTopCorner(floorf(rect.right - rightTopRadius + 2.0),
-			floorf(rect.top), floorf(rect.right),
-			floorf(rect.top + rightTopRadius - 2.0));
-		clipping.Exclude(rightTopCorner);
-		_DrawRoundCornerBackgroundRightTop(view, rightTopCorner,
-			updateRect, bevelLightColor, bevelShadowColor, fillGradient);
-	}
-
-	if ((borders & B_LEFT_BORDER) != 0 && (borders & B_BOTTOM_BORDER) != 0
-		&& leftBottomRadius > 0) {
-		// draw left bottom rounded corner
-		BRect leftBottomCorner(floorf(rect.left),
-			floorf(rect.bottom - leftBottomRadius + 2.0),
-			floorf(rect.left + leftBottomRadius - 2.0),
-			floorf(rect.bottom));
-		clipping.Exclude(leftBottomCorner);
-		_DrawRoundCornerBackgroundLeftBottom(view, leftBottomCorner,
-			updateRect, bevelLightColor, bevelShadowColor, fillGradient);
-	}
-
-	if ((borders & B_RIGHT_BORDER) != 0 && (borders & B_BOTTOM_BORDER) != 0
-		&& rightBottomRadius > 0) {
-		// draw right bottom rounded corner
-		BRect rightBottomCorner(floorf(rect.right - rightBottomRadius + 2.0),
-			floorf(rect.bottom - rightBottomRadius + 2.0), floorf(rect.right),
-			floorf(rect.bottom));
-		clipping.Exclude(rightBottomCorner);
-		_DrawRoundCornerBackgroundRightBottom(view, rightBottomCorner,
-			updateRect, bevelShadowColor, fillGradient);
-	}
-
-	// clip out the corners
-	view->ConstrainClippingRegion(&clipping);
 
 	// draw inner bevel
 
@@ -2620,7 +2563,7 @@ HaikuControlLook::_DrawNonFlatButtonBackground(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::_DrawPopUpMarker(BView* view, const BRect& rect,
+BeControlLook::_DrawPopUpMarker(BView* view, const BRect& rect,
 	const rgb_color& base, uint32 flags)
 {
 	BPoint center(roundf((rect.left + rect.right) / 2.0),
@@ -2647,7 +2590,7 @@ HaikuControlLook::_DrawPopUpMarker(BView* view, const BRect& rect,
 
 
 void
-HaikuControlLook::_DrawMenuFieldBackgroundOutside(BView* view, BRect& rect,
+BeControlLook::_DrawMenuFieldBackgroundOutside(BView* view, BRect& rect,
 	const BRect& updateRect, float leftTopRadius, float rightTopRadius,
 	float leftBottomRadius, float rightBottomRadius, const rgb_color& base,
 	bool popupIndicator, uint32 flags)
@@ -2690,7 +2633,7 @@ HaikuControlLook::_DrawMenuFieldBackgroundOutside(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::_DrawMenuFieldBackgroundInside(BView* view, BRect& rect,
+BeControlLook::_DrawMenuFieldBackgroundInside(BView* view, BRect& rect,
 	const BRect& updateRect, float leftTopRadius, float rightTopRadius,
 	float leftBottomRadius, float rightBottomRadius, const rgb_color& base,
 	uint32 flags, uint32 borders)
@@ -2882,7 +2825,7 @@ HaikuControlLook::_DrawMenuFieldBackgroundInside(BView* view, BRect& rect,
 
 
 void
-HaikuControlLook::_DrawRoundCornerLeftTop(BView* view, BRect& cornerRect,
+BeControlLook::_DrawRoundCornerLeftTop(BView* view, BRect& cornerRect,
 	const BRect& updateRect, const rgb_color& background,
 	const rgb_color& edgeColor, const rgb_color& frameColor,
 	const rgb_color& bevelColor, const BGradientLinear& fillGradient)
@@ -2895,7 +2838,7 @@ HaikuControlLook::_DrawRoundCornerLeftTop(BView* view, BRect& cornerRect,
 
 
 void
-HaikuControlLook::_DrawRoundCornerFrameLeftTop(BView* view, BRect& cornerRect,
+BeControlLook::_DrawRoundCornerFrameLeftTop(BView* view, BRect& cornerRect,
 	const BRect& updateRect, const rgb_color& background,
 	const rgb_color& edgeColor, const rgb_color& frameColor)
 {
@@ -2929,7 +2872,7 @@ HaikuControlLook::_DrawRoundCornerFrameLeftTop(BView* view, BRect& cornerRect,
 
 
 void
-HaikuControlLook::_DrawRoundCornerBackgroundLeftTop(BView* view, BRect& cornerRect,
+BeControlLook::_DrawRoundCornerBackgroundLeftTop(BView* view, BRect& cornerRect,
 	const BRect& updateRect, const rgb_color& bevelColor,
 	const BGradientLinear& fillGradient)
 {
@@ -2952,7 +2895,7 @@ HaikuControlLook::_DrawRoundCornerBackgroundLeftTop(BView* view, BRect& cornerRe
 
 
 void
-HaikuControlLook::_DrawRoundCornerRightTop(BView* view, BRect& cornerRect,
+BeControlLook::_DrawRoundCornerRightTop(BView* view, BRect& cornerRect,
 	const BRect& updateRect, const rgb_color& background,
 	const rgb_color& edgeTopColor, const rgb_color& edgeRightColor,
 	const rgb_color& frameTopColor, const rgb_color& frameRightColor,
@@ -2968,7 +2911,7 @@ HaikuControlLook::_DrawRoundCornerRightTop(BView* view, BRect& cornerRect,
 
 
 void
-HaikuControlLook::_DrawRoundCornerFrameRightTop(BView* view, BRect& cornerRect,
+BeControlLook::_DrawRoundCornerFrameRightTop(BView* view, BRect& cornerRect,
 	const BRect& updateRect, const rgb_color& background,
 	const rgb_color& edgeTopColor, const rgb_color& edgeRightColor,
 	const rgb_color& frameTopColor, const rgb_color& frameRightColor)
@@ -3015,7 +2958,7 @@ HaikuControlLook::_DrawRoundCornerFrameRightTop(BView* view, BRect& cornerRect,
 
 
 void
-HaikuControlLook::_DrawRoundCornerBackgroundRightTop(BView* view, BRect& cornerRect,
+BeControlLook::_DrawRoundCornerBackgroundRightTop(BView* view, BRect& cornerRect,
 	const BRect& updateRect, const rgb_color& bevelTopColor,
 	const rgb_color& bevelRightColor, const BGradientLinear& fillGradient)
 {
@@ -3042,7 +2985,7 @@ HaikuControlLook::_DrawRoundCornerBackgroundRightTop(BView* view, BRect& cornerR
 
 
 void
-HaikuControlLook::_DrawRoundCornerLeftBottom(BView* view, BRect& cornerRect,
+BeControlLook::_DrawRoundCornerLeftBottom(BView* view, BRect& cornerRect,
 	const BRect& updateRect, const rgb_color& background,
 	const rgb_color& edgeLeftColor, const rgb_color& edgeBottomColor,
 	const rgb_color& frameLeftColor, const rgb_color& frameBottomColor,
@@ -3058,7 +3001,7 @@ HaikuControlLook::_DrawRoundCornerLeftBottom(BView* view, BRect& cornerRect,
 
 
 void
-HaikuControlLook::_DrawRoundCornerFrameLeftBottom(BView* view, BRect& cornerRect,
+BeControlLook::_DrawRoundCornerFrameLeftBottom(BView* view, BRect& cornerRect,
 	const BRect& updateRect, const rgb_color& background,
 	const rgb_color& edgeLeftColor, const rgb_color& edgeBottomColor,
 	const rgb_color& frameLeftColor, const rgb_color& frameBottomColor)
@@ -3105,7 +3048,7 @@ HaikuControlLook::_DrawRoundCornerFrameLeftBottom(BView* view, BRect& cornerRect
 
 
 void
-HaikuControlLook::_DrawRoundCornerBackgroundLeftBottom(BView* view, BRect& cornerRect,
+BeControlLook::_DrawRoundCornerBackgroundLeftBottom(BView* view, BRect& cornerRect,
 	const BRect& updateRect, const rgb_color& bevelLeftColor,
 	const rgb_color& bevelBottomColor, const BGradientLinear& fillGradient)
 {
@@ -3132,7 +3075,7 @@ HaikuControlLook::_DrawRoundCornerBackgroundLeftBottom(BView* view, BRect& corne
 
 
 void
-HaikuControlLook::_DrawRoundCornerRightBottom(BView* view, BRect& cornerRect,
+BeControlLook::_DrawRoundCornerRightBottom(BView* view, BRect& cornerRect,
 	const BRect& updateRect, const rgb_color& background,
 	const rgb_color& edgeColor, const rgb_color& frameColor,
 	const rgb_color& bevelColor, const BGradientLinear& fillGradient)
@@ -3145,7 +3088,7 @@ HaikuControlLook::_DrawRoundCornerRightBottom(BView* view, BRect& cornerRect,
 
 
 void
-HaikuControlLook::_DrawRoundCornerFrameRightBottom(BView* view, BRect& cornerRect,
+BeControlLook::_DrawRoundCornerFrameRightBottom(BView* view, BRect& cornerRect,
 	const BRect& updateRect, const rgb_color& background,
 	const rgb_color& edgeColor, const rgb_color& frameColor)
 {
@@ -3179,7 +3122,7 @@ HaikuControlLook::_DrawRoundCornerFrameRightBottom(BView* view, BRect& cornerRec
 
 
 void
-HaikuControlLook::_DrawRoundCornerBackgroundRightBottom(BView* view,
+BeControlLook::_DrawRoundCornerBackgroundRightBottom(BView* view,
 	BRect& cornerRect, const BRect& updateRect, const rgb_color& bevelColor,
 	const BGradientLinear& fillGradient)
 {
@@ -3202,7 +3145,7 @@ HaikuControlLook::_DrawRoundCornerBackgroundRightBottom(BView* view,
 
 
 void
-HaikuControlLook::_DrawRoundBarCorner(BView* view, BRect& rect,
+BeControlLook::_DrawRoundBarCorner(BView* view, BRect& rect,
 	const BRect& updateRect,
 	const rgb_color& edgeLightColor, const rgb_color& edgeShadowColor,
 	const rgb_color& frameLightColor, const rgb_color& frameShadowColor,
@@ -3259,7 +3202,7 @@ HaikuControlLook::_DrawRoundBarCorner(BView* view, BRect& rect,
 
 
 rgb_color
-HaikuControlLook::_EdgeLightColor(const rgb_color& base, float contrast,
+BeControlLook::_EdgeLightColor(const rgb_color& base, float contrast,
 	float brightness, uint32 flags)
 {
 	rgb_color edgeLightColor;
@@ -3292,7 +3235,7 @@ HaikuControlLook::_EdgeLightColor(const rgb_color& base, float contrast,
 
 
 rgb_color
-HaikuControlLook::_EdgeShadowColor(const rgb_color& base, float contrast,
+BeControlLook::_EdgeShadowColor(const rgb_color& base, float contrast,
 	float brightness, uint32 flags)
 {
 	rgb_color edgeShadowColor;
@@ -3322,7 +3265,7 @@ HaikuControlLook::_EdgeShadowColor(const rgb_color& base, float contrast,
 
 
 rgb_color
-HaikuControlLook::_FrameLightColor(const rgb_color& base, uint32 flags)
+BeControlLook::_FrameLightColor(const rgb_color& base, uint32 flags)
 {
 	if ((flags & B_FOCUSED) != 0)
 		return ui_color(B_KEYBOARD_NAVIGATION_COLOR);
@@ -3353,7 +3296,7 @@ HaikuControlLook::_FrameLightColor(const rgb_color& base, uint32 flags)
 
 
 rgb_color
-HaikuControlLook::_FrameShadowColor(const rgb_color& base, uint32 flags)
+BeControlLook::_FrameShadowColor(const rgb_color& base, uint32 flags)
 {
 	if ((flags & B_FOCUSED) != 0)
 		return ui_color(B_KEYBOARD_NAVIGATION_COLOR);
@@ -3392,7 +3335,7 @@ HaikuControlLook::_FrameShadowColor(const rgb_color& base, uint32 flags)
 
 
 rgb_color
-HaikuControlLook::_BevelLightColor(const rgb_color& base, uint32 flags)
+BeControlLook::_BevelLightColor(const rgb_color& base, uint32 flags)
 {
 	rgb_color bevelLightColor = tint_color(base, 0.2);
 
@@ -3407,7 +3350,7 @@ HaikuControlLook::_BevelLightColor(const rgb_color& base, uint32 flags)
 
 
 rgb_color
-HaikuControlLook::_BevelShadowColor(const rgb_color& base, uint32 flags)
+BeControlLook::_BevelShadowColor(const rgb_color& base, uint32 flags)
 {
 	rgb_color bevelShadowColor = tint_color(base, 1.08);
 
@@ -3422,7 +3365,7 @@ HaikuControlLook::_BevelShadowColor(const rgb_color& base, uint32 flags)
 
 
 void
-HaikuControlLook::_FillGradient(BView* view, const BRect& rect,
+BeControlLook::_FillGradient(BView* view, const BRect& rect,
 	const rgb_color& base, float topTint, float bottomTint,
 	orientation orientation)
 {
@@ -3433,7 +3376,7 @@ HaikuControlLook::_FillGradient(BView* view, const BRect& rect,
 
 
 void
-HaikuControlLook::_FillGlossyGradient(BView* view, const BRect& rect,
+BeControlLook::_FillGlossyGradient(BView* view, const BRect& rect,
 	const rgb_color& base, float topTint, float middle1Tint,
 	float middle2Tint, float bottomTint, orientation orientation)
 {
@@ -3445,7 +3388,7 @@ HaikuControlLook::_FillGlossyGradient(BView* view, const BRect& rect,
 
 
 void
-HaikuControlLook::_MakeGradient(BGradientLinear& gradient, const BRect& rect,
+BeControlLook::_MakeGradient(BGradientLinear& gradient, const BRect& rect,
 	const rgb_color& base, float topTint, float bottomTint,
 	orientation orientation) const
 {
@@ -3460,7 +3403,7 @@ HaikuControlLook::_MakeGradient(BGradientLinear& gradient, const BRect& rect,
 
 
 void
-HaikuControlLook::_MakeGlossyGradient(BGradientLinear& gradient, const BRect& rect,
+BeControlLook::_MakeGlossyGradient(BGradientLinear& gradient, const BRect& rect,
 	const rgb_color& base, float topTint, float middle1Tint,
 	float middle2Tint, float bottomTint,
 	orientation orientation) const
@@ -3478,7 +3421,7 @@ HaikuControlLook::_MakeGlossyGradient(BGradientLinear& gradient, const BRect& re
 
 
 void
-HaikuControlLook::_MakeButtonGradient(BGradientLinear& gradient, BRect& rect,
+BeControlLook::_MakeButtonGradient(BGradientLinear& gradient, BRect& rect,
 	const rgb_color& base, uint32 flags, orientation orientation) const
 {
 	float topTint = 0.49;
@@ -3514,7 +3457,7 @@ HaikuControlLook::_MakeButtonGradient(BGradientLinear& gradient, BRect& rect,
 
 
 bool
-HaikuControlLook::_RadioButtonAndCheckBoxMarkColor(const rgb_color& base,
+BeControlLook::_RadioButtonAndCheckBoxMarkColor(const rgb_color& base,
 	rgb_color& color, uint32 flags) const
 {
 	if ((flags & (B_ACTIVATED | B_PARTIALLY_ACTIVATED | B_CLICKED)) == 0) {

@@ -90,14 +90,11 @@ public:
 		B_BLEND_FRAME			= 1 << 16,
 	};
 
-	virtual BAlignment			DefaultLabelAlignment() const = 0;
-	virtual float				DefaultLabelSpacing() const = 0;
-
-	virtual	float				DefaultItemSpacing() const = 0;
-
+	virtual BAlignment			DefaultLabelAlignment() const;
+	virtual float				DefaultLabelSpacing() const;
+	virtual	float				DefaultItemSpacing() const;
 	static	float				ComposeSpacing(float spacing);
-
-	virtual uint32				Flags(BControl* control) const = 0;
+	virtual uint32				Flags(BControl* control) const;
 
 	virtual	void				DrawButtonFrame(BView* view, BRect& rect,
 									const BRect& updateRect,
