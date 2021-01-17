@@ -509,12 +509,7 @@ BTextView::AttachedToWindow()
 	fDragOffset = -1;
 	fActive = false;
 
-	// text rect right must be greater than left
-	if (fTextRect.right <= fTextRect.left)
-		fTextRect.right = fTextRect.left + 1;
-	// text rect bottom must be greater than top
-	if (fTextRect.bottom <= fTextRect.top)
-		fTextRect.bottom = fTextRect.top + 1;
+	_ValidateTextRect();
 
 	_AutoResize(true);
 
@@ -810,6 +805,7 @@ BTextView::FrameResized(float newWidth, float newHeight)
 
 	if (fWrap) {
 		// recalculate line breaks
+		// will update scroll bars if text rect changes
 		_ResetTextRect();
 	} else {
 		// don't recalculate line breaks,
@@ -852,9 +848,9 @@ BTextView::FrameResized(float newWidth, float newHeight)
 			BRegion dirty(oldTextRect | fTextRect);
 			Invalidate(&dirty);
 		}
-	}
 
-	_UpdateScrollbars();
+		_UpdateScrollbars();
+	}
 }
 
 
@@ -2164,30 +2160,42 @@ BTextView::ScrollToOffset(int32 offset)
 {
 	BRect bounds = Bounds();
 	float lineHeight = 0.0;
-	float xDiff = 0.0;
-	float yDiff = 0.0;
 	BPoint point = PointAt(offset, &lineHeight);
+	BPoint scrollBy(B_ORIGIN);
 
 	// horizontal
-	float extraSpace = ceilf(bounds.IntegerWidth() / 2);
 	if (point.x < bounds.left)
-		xDiff = point.x - bounds.right + extraSpace;
+		scrollBy.x = point.x - bounds.right;
 	else if (point.x > bounds.right)
-		xDiff = point.x - bounds.left - extraSpace;
+		scrollBy.x = point.x - bounds.left;
 
-	// vertical
-	if (point.y < bounds.top)
-		yDiff = point.y - bounds.top;
-	else if (point.y + lineHeight > bounds.bottom
-		&& point.y - lineHeight > bounds.top) {
-		yDiff = point.y + lineHeight - bounds.bottom;
+	// prevent from scrolling out of view
+	if (scrollBy.x != 0.0) {
+		float rightMax = fTextRect.right + fLayoutData->rightInset;
+		if (bounds.right + scrollBy.x > rightMax)
+			scrollBy.x = rightMax - bounds.right;
+		float leftMin = fTextRect.left - fLayoutData->leftInset;
+		if (bounds.left + scrollBy.x < leftMin)
+			scrollBy.x = leftMin - bounds.left;
 	}
 
-	// prevent negative scroll offset in y
-	if (bounds.top + yDiff < 0.0)
-		yDiff = -bounds.top;
+	// vertical
+	if (CountLines() > 1) {
+		// scroll in Y only if multiple lines!
+		if (point.y < bounds.top - fLayoutData->topInset)
+			scrollBy.y = point.y - bounds.top - fLayoutData->topInset;
+		else if (point.y + lineHeight > bounds.bottom
+				+ fLayoutData->bottomInset) {
+			scrollBy.y = point.y + lineHeight - bounds.bottom
+				+ fLayoutData->bottomInset;
+		}
+	}
 
-	ScrollBy(xDiff, yDiff);
+	ScrollBy(scrollBy.x, scrollBy.y);
+
+	// Update text rect position and scroll bars
+	if (CountLines() > 1 && !fWrap)
+		FrameResized(Bounds().Width(), Bounds().Height());
 }
 
 
@@ -2409,6 +2417,8 @@ BTextView::SetWordWrap(bool wrap)
 			_HideCaret();
 	}
 
+	BRect savedBounds = Bounds();
+
 	fWrap = wrap;
 	if (wrap)
 		_ResetTextRect(); // calls _Refresh
@@ -2417,6 +2427,10 @@ BTextView::SetWordWrap(bool wrap)
 
 	if (fEditable)
 		ScrollToOffset(fCaretOffset);
+
+	// redraw text rect and update scroll bars if bounds have changed
+	if (Bounds() != savedBounds)
+		FrameResized(Bounds().Width(), Bounds().Height());
 
 	if (updateOnScreen) {
 		// show the caret, hilite the selection
@@ -3258,6 +3272,10 @@ BTextView::_HandleBackspace(int32 modifiers)
 		undoBuffer->BackwardErase();
 	}
 
+	// we may draw twice, so turn updates off for now
+	if (Window() != NULL)
+		Window()->DisableUpdates();
+
 	if (fSelStart == fSelEnd) {
 		if (fSelStart == 0)
 			return;
@@ -3270,6 +3288,10 @@ BTextView::_HandleBackspace(int32 modifiers)
 	fCaretOffset = fSelEnd = fSelStart;
 
 	_Refresh(fSelStart, fSelEnd, fCaretOffset);
+
+	// turn drawing back on
+	if (Window() != NULL)
+		Window()->EnableUpdates();
 }
 
 
@@ -3479,6 +3501,10 @@ BTextView::_HandleDelete(int32 modifiers)
 		undoBuffer->ForwardErase();
 	}
 
+	// we may draw twice, so turn updates off for now
+	if (Window() != NULL)
+		Window()->DisableUpdates();
+
 	if (fSelStart == fSelEnd) {
 		if (fSelEnd == fText->Length())
 			return;
@@ -3491,6 +3517,10 @@ BTextView::_HandleDelete(int32 modifiers)
 	fCaretOffset = fSelEnd = fSelStart;
 
 	_Refresh(fSelStart, fSelEnd, fCaretOffset);
+
+	// turn updates back on
+	if (Window() != NULL)
+		Window()->EnableUpdates();
 }
 
 
@@ -3694,6 +3724,10 @@ BTextView::_HandleAlphaKey(const char* bytes, int32 numBytes)
 		DeleteText(fSelStart, fSelEnd);
 	}
 
+	// we may draw twice, so turn updates off for now
+	if (Window() != NULL)
+		Window()->DisableUpdates();
+
 	if (fAutoindent && numBytes == 1 && *bytes == B_ENTER) {
 		int32 start, offset;
 		start = offset = OffsetAt(_LineAt(fSelStart));
@@ -3710,8 +3744,11 @@ BTextView::_HandleAlphaKey(const char* bytes, int32 numBytes)
 		_DoInsertText(bytes, numBytes, fSelStart, NULL);
 
 	fCaretOffset = fSelEnd;
-
 	ScrollToOffset(fCaretOffset);
+
+	// turn update back on to draw
+	if (Window() != NULL)
+		Window()->EnableUpdates();
 }
 
 
@@ -3883,29 +3920,39 @@ BTextView::_RecalculateLineBreaks(int32* startLine, int32* endLine)
 		switch (fAlignment) {
 			default:
 			case B_ALIGN_LEFT:
-				// grow right
-				fTextRect.right = std::max(fTextRect.right,
-					fTextRect.left + fMinTextRectWidth);
+				// move right edge
+				fTextRect.right = fTextRect.left + fMinTextRectWidth;
 				break;
 
 			case B_ALIGN_RIGHT:
-				// grow left
-				fTextRect.left = std::min(fTextRect.left,
-					fTextRect.right - fMinTextRectWidth);
+				// move left edge
+				fTextRect.left = fTextRect.right - fMinTextRectWidth;
 				break;
 
 			case B_ALIGN_CENTER:
-				// grow out
-				if (fMinTextRectWidth > fTextRect.Width()) {
-					fTextRect.InsetBy(ceilf((fTextRect.Width()
-						- fMinTextRectWidth) / 2.0f), 0);
-				}
+				// move both edges
+				fTextRect.InsetBy(roundf((fTextRect.Width()
+					- fMinTextRectWidth) / 2), 0);
 				break;
 		}
+
+		_ValidateTextRect();
 	}
 
 	*endLine = lineIndex - 1;
 	*startLine = std::min(*startLine, *endLine);
+}
+
+
+void
+BTextView::_ValidateTextRect()
+{
+	// text rect right must be greater than left
+	if (fTextRect.right <= fTextRect.left)
+		fTextRect.right = fTextRect.left + 1;
+	// text rect bottom must be greater than top
+	if (fTextRect.bottom <= fTextRect.top)
+		fTextRect.bottom = fTextRect.top + 1;
 }
 
 
@@ -4590,7 +4637,6 @@ BTextView::_RequestDrawLines(int32 startLine, int32 endLine)
 		Bounds().right,
 		to != NULL ? to->origin + fTextRect.top : fTextRect.bottom);
 	Invalidate(invalidRect);
-	Window()->UpdateIfNeeded();
 }
 
 
@@ -4937,11 +4983,12 @@ BTextView::_PerformAutoScrolling()
 
 	// prevent from scrolling out of view
 	if (scrollBy.x != 0.0) {
-		float rightMax = floorf(fTextRect.right + fLayoutData->rightInset);
+		float rightMax = fTextRect.right + fLayoutData->rightInset;
 		if (bounds.right + scrollBy.x > rightMax)
 			scrollBy.x = rightMax - bounds.right;
-		if (bounds.left + scrollBy.x < 0)
-			scrollBy.x = -bounds.left;
+		float leftMin = fTextRect.left - fLayoutData->leftInset;
+		if (bounds.left + scrollBy.x < leftMin)
+			scrollBy.x = leftMin - bounds.left;
 	}
 
 	if (CountLines() > 1) {
@@ -4953,12 +5000,12 @@ BTextView::_PerformAutoScrolling()
 
 		// prevent from scrolling out of view
 		if (scrollBy.y != 0.0) {
-			float bottomMax = floorf(fTextRect.bottom
-				+ fLayoutData->bottomInset);
+			float bottomMax = fTextRect.bottom + fLayoutData->bottomInset;
 			if (bounds.bottom + scrollBy.y > bottomMax)
 				scrollBy.y = bottomMax - bounds.bottom;
-			if (bounds.top + scrollBy.y < 0)
-				scrollBy.y = -bounds.top;
+			float topMin = fTextRect.top - fLayoutData->topInset;
+			if (bounds.top + scrollBy.y < topMin)
+				scrollBy.y = topMin - bounds.top;
 		}
 	}
 
@@ -5044,28 +5091,26 @@ BTextView::_ScrollTo(float x, float y)
 void
 BTextView::_AutoResize(bool redraw)
 {
-	if (!fResizable)
+	if (!fResizable || fContainerView == NULL)
 		return;
 
 	BRect bounds = Bounds();
 
-	if (fContainerView != NULL) {
-		// NOTE: This container view thing is only used by Tracker.
-		// move container view if not left aligned
-		float oldWidth = bounds.Width();
-		float newWidth = ceilf(fLayoutData->leftInset
-			+ fTextRect.Width() + fLayoutData->rightInset);
-		if (fAlignment == B_ALIGN_CENTER) {
-			if (fmod(ceilf(newWidth - oldWidth), 2.0) != 0.0)
-				newWidth += 1;
+	// NOTE: This container view thing is only used by Tracker.
+	// move container view if not left aligned
+	float oldWidth = bounds.Width();
+	float newWidth = ceilf(fLayoutData->leftInset
+		+ fTextRect.Width() + fLayoutData->rightInset);
+	float right = oldWidth - newWidth;
 
-			fContainerView->MoveBy(ceilf(oldWidth - newWidth) / 2, 0);
-		} else if (fAlignment == B_ALIGN_RIGHT)
-			fContainerView->MoveBy(ceilf(oldWidth - newWidth), 0);
+	if (fAlignment == B_ALIGN_CENTER)
+		fContainerView->MoveBy(roundf(right / 2), 0);
+	else if (fAlignment == B_ALIGN_RIGHT)
+		fContainerView->MoveBy(right, 0);
 
-		// resize container view
-		fContainerView->ResizeBy(ceilf(newWidth - oldWidth), 0);
-	}
+	// resize container view
+	float grow = newWidth - oldWidth;
+	fContainerView->ResizeBy(grow, 0);
 
 	if (redraw)
 		_RequestDrawLines(0, 0);
